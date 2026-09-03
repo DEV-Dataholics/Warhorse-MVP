@@ -1,64 +1,83 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Libraries;
 
-/**
- * Matriz de módulos por rol (RF-USR-03) y aterrizaje por rol (RF-AUTH-02).
- * Extendida al SRS: incluye los módulos Taller y Diésel de la UI de
- * producción. El backend re-verifica cada acción con el filtro rbac;
- * esta matriz alimenta la visibilidad de navegación del SPA.
- */
-final class Permisos
+class Permisos
 {
-    public const MODULOS = ['dashboard', 'requisicion', 'taller', 'compras', 'catalogo', 'diesel', 'usuarios', 'reportes', 'reparaciones'];
-
-    private const MATRIZ = [
-        'admin'   => ['dashboard', 'requisicion', 'taller', 'compras', 'catalogo', 'diesel', 'usuarios', 'reportes', 'reparaciones'],
-        'taller'  => ['requisicion', 'taller', 'catalogo', 'reparaciones'],
-        'compras' => ['compras', 'catalogo', 'reportes'],
-        'diesel'  => ['diesel', 'catalogo'],
-    ];
-
-    private const LANDING = [
-        'admin'   => 'dashboard',
-        'taller'  => 'requisicion',
-        'compras' => 'compras',
-        'diesel'  => 'diesel',
+    /**
+     * Map of roles to the UI modules they can access.
+     * The frontend expects an object like { "dashboard": true, "compras": true, ... }
+     */
+    private static array $matrizFrontend = [
+        'compras' => [
+            'dashboard' => true,
+            'compras' => true,
+            'requisicion' => true,
+            'catalogo' => true,
+            'reparaciones' => true
+        ],
+        'taller' => [
+            'dashboard' => true,
+            'taller' => true,
+            'requisicion' => true,
+            'catalogo' => true,
+            'reparaciones' => true
+        ],
+        'diesel' => [
+            'dashboard' => true,
+            'diesel' => true,
+            'catalogo' => true
+        ],
+        'admin' => [
+            'dashboard' => true,
+            'taller' => true,
+            'requisicion' => true,
+            'compras' => true,
+            'diesel' => true,
+            'catalogo' => true,
+            'usuarios' => true,
+            'reportes' => true,
+            'admin' => true,
+            'reparaciones' => true
+        ]
     ];
 
     /**
-     * @param string[] $roles
-     * @return array<string, bool>
+     * @param array|string $roles
      */
-    public static function deRoles(array $roles): array
+    public static function deRoles($roles): array
     {
-        $permisos = [];
-        foreach (self::MODULOS as $modulo) {
-            $permisos[$modulo] = false;
+        if (is_string($roles)) {
+            $roles = array_map('trim', explode(',', $roles));
         }
 
+        $permisosAcumulados = [];
         foreach ($roles as $rol) {
-            $visibles = self::MATRIZ[$rol] ?? [];
-            foreach ($visibles as $modulo) {
-                $permisos[$modulo] = true;
+            if (isset(self::$matrizFrontend[$rol])) {
+                foreach (self::$matrizFrontend[$rol] as $modulo => $valor) {
+                    if ($valor) {
+                        $permisosAcumulados[$modulo] = true;
+                    }
+                }
             }
         }
-
-        return $permisos;
+        return $permisosAcumulados;
     }
 
     /**
-     * @param string[] $roles
+     * @param array|string $roles
      */
-    public static function landing(array $roles): string
+    public static function landing($roles): string
     {
+        if (is_string($roles)) {
+            $roles = array_map('trim', explode(',', $roles));
+        }
+
         if (in_array('admin', $roles, true)) return 'dashboard';
         if (in_array('compras', $roles, true)) return 'compras';
         if (in_array('taller', $roles, true)) return 'requisicion';
         if (in_array('diesel', $roles, true)) return 'diesel';
         
-        return 'catalogo';
+        return 'dashboard';
     }
 }

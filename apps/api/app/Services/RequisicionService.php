@@ -123,6 +123,17 @@ final class RequisicionService
         }
 
         $actualizacion = ['estado' => $nuevo];
+        
+        if (!empty($cambio['proveedor'])) {
+            $actualizacion['proveedor'] = $cambio['proveedor'];
+        }
+        if (isset($cambio['es_caja_chica'])) {
+            $actualizacion['es_caja_chica'] = (int) $cambio['es_caja_chica'];
+        }
+        if (!empty($cambio['factura_xml'])) {
+            $actualizacion['factura_xml'] = $cambio['factura_xml'];
+        }
+        
 
         $justificacion = null;
         if (in_array($nuevo, ['Cancelado', 'Rechazado', 'Más información'], true)) {
@@ -230,7 +241,13 @@ final class RequisicionService
             $destinoId = (int) $destino['id'];
         }
 
+        // TKT-WAR-105: Gatekeeper
         $otId = null;
+        if (empty($datos['orden_trabajo_id'])) {
+            throw new ValidacionException('Todas las requisiciones deben estar vinculadas a una Orden de Trabajo activa.', [
+                'orden_trabajo_id' => ['Todas las requisiciones deben estar vinculadas a una Orden de Trabajo activa.'],
+            ]);
+        }
         if (!empty($datos['orden_trabajo_id'])) {
             $ot = db_connect()->table('ordenes_trabajo')->where('id', (int)$datos['orden_trabajo_id'])->get()->getRowArray();
             if ($ot === null) {

@@ -7,11 +7,6 @@ define("FCPATH", __DIR__ . DIRECTORY_SEPARATOR);
 if (getcwd() . DIRECTORY_SEPARATOR !== FCPATH) {
     chdir(FCPATH);
 }
-// Note: run_migrations.php is uploaded to the root of the domain (public_html/run_migrations.php).
-// The warhorse_app folder is at FCPATH . 'warhorse_app/' or FCPATH . '../warhorse_app/'.
-// Let's look at index.php: it does require FCPATH . '../warhorse_app/app/Config/Paths.php'.
-// Because FCPATH is __DIR__, in public_html, FCPATH . '../warhorse_app/app/Config/Paths.php' points to the sibling folder.
-// Since we upload run_migrations.php to public_html/ (the web root), the path is indeed FCPATH . '../warhorse_app/app/Config/Paths.php'.
 
 if (file_exists(FCPATH . 'warhorse_app/app/Config/Paths.php')) {
     require FCPATH . 'warhorse_app/app/Config/Paths.php';
@@ -38,22 +33,61 @@ class Bootstrapper extends \CodeIgniter\Boot {
 Bootstrapper::init($paths);
 
 try {
-    // Run migrations using CI4 runner CLI emulator or services directly
     $migrate = \CodeIgniter\Config\Services::migrations();
-    
-    // CodeIgniter 4 lets us run migrate:latest via Runner
-    // Let's migrate all namespaces: App, Shield, Settings, Queue
     $namespaces = ["CodeIgniter\Settings", "CodeIgniter\Shield", "CodeIgniter\Queue", "App"];
-    
+
     echo "<h1>Starting migrations...</h1>";
     foreach ($namespaces as $ns) {
         echo "Migrating namespace: {$ns}<br>";
         $migrate->setNamespace($ns);
         $migrate->latest();
     }
-    
     echo "<h2>Migration completed successfully!</h2>";
 } catch (\Throwable $e) {
     echo "<h2>Migration failed!</h2>";
+    echo "<pre>" . $e->getMessage() . "\n" . $e->getTraceAsString() . "</pre>";
+}
+
+// IMPORT TRACTORES using real column names from live DB
+try {
+    $db = \Config\Database::connect();
+    $file = ROOTPATH . 'tractores.json';
+
+    if (!file_exists($file)) {
+        echo "<p>tractores.json not found at {$file}</p>";
+    } else {
+        $data = json_decode(file_get_contents($file), true);
+        $updated = 0; $inserted = 0;
+
+        foreach ($data as $t) {
+            $existing = $db->table('unidades')->where('id_unidad', $t['id_unidad'])->get()->getRow();
+            if ($existing) {
+                $db->table('unidades')->where('id', $existing->id)->update([
+                    'placas'    => $t['placas'],
+                    'marca_ano' => $t['marca_ano'],
+                    'vin'       => $t['vin'],
+                    'marca'     => isset($t['marca_ano']) ? explode('-', $t['marca_ano'])[0] : null,
+                    'modelo'    => isset($t['marca_ano']) ? (explode('-', $t['marca_ano'])[1] ?? null) : null,
+                ]);
+                $updated++;
+            } else {
+                $db->table('unidades')->insert([
+                    'id_unidad' => $t['id_unidad'],
+                    'tipo'      => 'Tractor',
+                    'placas'    => $t['placas'],
+                    'marca_ano' => $t['marca_ano'],
+                    'vin'       => $t['vin'],
+                    'marca'     => isset($t['marca_ano']) ? explode('-', $t['marca_ano'])[0] : null,
+                    'modelo'    => isset($t['marca_ano']) ? (explode('-', $t['marca_ano'])[1] ?? null) : null,
+                    'estado'    => 'Activo',
+                    'fecha_alta' => date('Y-m-d'),
+                ]);
+                $inserted++;
+            }
+        }
+        echo "<h2>Tractores: {$updated} updated, {$inserted} inserted.</h2>";
+    }
+} catch (\Throwable $e) {
+    echo "<h2>Tractor import failed!</h2>";
     echo "<pre>" . $e->getMessage() . "\n" . $e->getTraceAsString() . "</pre>";
 }

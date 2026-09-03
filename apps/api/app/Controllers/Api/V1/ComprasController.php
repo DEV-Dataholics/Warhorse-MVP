@@ -32,6 +32,7 @@ final class ComprasController extends BaseController
             $porPag = min(200, max(1, (int) ($request->getGet('per_page') ?? 100)));
         }
 
+        if ($estado === 'Todas') $estado = null;
         if ($estado !== null && ! in_array($estado, ['Solicitado', 'En aprobación', 'En pago', 'En recolección', 'Más información', 'Cancelado', 'Rechazado', 'Instalado', 'Cotizado', 'Comprado', 'En trayecto'], true)) {
             return RespuestasApi::error(422, 'validation', 'Estado de requisición inválido.', ['estado' => ['in_list']]);
         }
@@ -40,6 +41,32 @@ final class ComprasController extends BaseController
             'data' => (new RequisicionService())->listarCola($estado, $pagina, $porPag),
             'meta' => ['page' => $pagina, 'per_page' => $porPag],
         ]);
+    }
+
+    // TKT-WAR-102: Buscador rápido de estatus de compras por ID o número económico
+    public function buscar(): ResponseInterface
+    {
+        $request = $this->request;
+        $q = $request instanceof \CodeIgniter\HTTP\IncomingRequest ? $request->getGet('q') : '';
+        $q = trim((string)$q);
+
+        if ($q === '') {
+            return $this->response->setJSON([]);
+        }
+
+        $db = \Config\Database::connect();
+        $builder = $db->table('requisiciones req')
+            ->select('req.*, u.numero_economico as unidad, u.placas as placas')
+            ->join('unidades u', 'u.id = req.unidad_id', 'left')
+            ->groupStart()
+                ->like('req.id', $q)
+                ->orLike('u.numero_economico', $q)
+                ->orLike('req.justificacion', $q)
+            ->groupEnd()
+            ->orderBy('req.created_at', 'DESC')
+            ->limit(20);
+
+        return $this->response->setJSON($builder->get()->getResultArray());
     }
 
     public function estado(int $id): ResponseInterface
@@ -64,6 +91,9 @@ final class ComprasController extends BaseController
             'costo_real'     => 'permit_empty|decimal|greater_than[0]',
             'numero_factura' => 'permit_empty|string|max_length[80]',
             'motivo'         => 'permit_empty|string|max_length[500]',
+            'proveedor'      => 'permit_empty|string|max_length[150]',
+            'es_caja_chica'  => 'permit_empty|in_list[0,1]',
+            'factura_xml'    => 'permit_empty|string|max_length[255]',
         ])) {
             $errores = $this->validator?->getErrors() ?? [];
 

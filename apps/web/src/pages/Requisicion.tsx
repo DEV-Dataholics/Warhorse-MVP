@@ -1,4 +1,5 @@
 import { useState, useEffect, type CSSProperties } from 'react'
+import { useWizardStore } from '../store/wizardStore'
 import Ayuda from '../components/Ayuda'
 import Kicker from '../components/Kicker'
 import { crearRequisicion, getArticulosAlmacen, getOrdenesTrabajo, getRequisiciones, type ArticuloAlmacenApi, type OrdenTrabajoApi, type RequisicionApi } from '../lib/api'
@@ -7,9 +8,9 @@ import { FD, h2Titulo, subTitulo, urgColors } from '../lib/estilos'
 import type { Origen, Urgencia } from '../lib/types'
 
 const etiqueta: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 600 }
-const ayudaCampo: CSSProperties = { fontSize: 12.5, fontWeight: 400, color: '#6F6A60' }
+const ayudaCampo: CSSProperties = { fontSize: 12.5, fontWeight: 400, color: 'var(--text-muted)' }
 
-export default function Requisicion() {
+export default function Requisicion() { 
   const { unidades, toast } = useDemo()
   const [destino, setDestino] = useState('')
   const [destinoInput, setDestinoInput] = useState('')
@@ -25,7 +26,9 @@ export default function Requisicion() {
   const [origenRefaccion, setOrigenRefaccion] = useState('')
   const [almacen, setAlmacen] = useState('')
   const [numeroSerie, setNumeroSerie] = useState('')
-  const [ordenTrabajoId, setOrdenTrabajoId] = useState('')
+  const { compras, agregarItemCompra, removerItemCompra, clearCompras, setOtId } = useWizardStore()
+  const ordenTrabajoId = compras.otId || ''
+  const setOrdenTrabajoId = setOtId
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajoApi[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
@@ -33,7 +36,8 @@ export default function Requisicion() {
   const [articulos, setArticulos] = useState<ArticuloAlmacenApi[]>([])
   const [selArticuloId, setSelArticuloId] = useState('')
   const [categoriaSel, setCategoriaSel] = useState('')
-  const [carrito, setCarrito] = useState<any[]>([])
+  
+  const carrito = compras.items
   const [historial, setHistorial] = useState<RequisicionApi[]>([])
 
   useEffect(() => {
@@ -42,7 +46,7 @@ export default function Requisicion() {
     getRequisiciones().then(setHistorial).catch(() => {})
   }, [])
 
-  // CatÃ¡logo VIVO (RF-UNI-01): los selectores leen de la API, no del mock
+  // Catálogo VIVO (RF-UNI-01): los selectores leen de la API, no del mock
   const destinoOpts = unidades.filter((t) => t.estado === 'Activo')
   const donanteOpts = unidades.filter((t) => t.estado === 'Yonke')
   const esYonke = origen === 'Yonke'
@@ -64,7 +68,7 @@ export default function Requisicion() {
     if (e.dataTransfer.files) {
       const files = Array.from(e.dataTransfer.files)
       if (fotos.length + files.length > 3) {
-        setError('La carga de evidencias estÃ¡ limitada a un mÃ¡ximo de 3 fotografÃ­as.')
+        setError('La carga de evidencias está limitada a un máximo de 3 fotografías.')
         return
       }
       setFotos((prev) => [...prev, ...files])
@@ -82,21 +86,21 @@ export default function Requisicion() {
     let piezaCatId: number | null = selArticuloId ? Number(selArticuloId) : null
 
     if (esInventario) {
-      if (!selArticuloId) return setError('Selecciona el artÃ­culo del inventario.')
+      if (!selArticuloId) return setError('Selecciona el artículo del inventario.')
       const art = articulos.find(a => String(a.id) === selArticuloId)
-      if (!art) return setError('ArtÃ­culo de catÃ¡logo invÃ¡lido.')
-      if (art.stock_actual <= 0) return setError('No hay stock disponible en almacÃ©n para este artÃ­culo.')
+      if (!art) return setError('Artículo de catálogo inválido.')
+      if (art.stock_actual <= 0) return setError('No hay stock disponible en almacén para este artículo.')
       descripcionPieza = art.nombre_normalizado
       sku = art.numero_parte
       piezaCatId = art.id
     } else {
       if (!descripcionPieza) return setError('Describe la pieza solicitada.')
-      if (descripcionPieza.length > 350) return setError('La descripciÃ³n de la pieza no puede exceder los 350 caracteres.')
+      if (descripcionPieza.length > 350) return setError('La descripción de la pieza no puede exceder los 350 caracteres.')
       if (esYonke && !donante) return setError('El origen Yonke obliga a registrar la unidad donante.')
     }
     
     if (fotos.length === 0) return setError('La foto de la pieza o etiqueta del VIN es obligatoria.')
-    if (fotos.length > 3) return setError('La carga de evidencias estÃ¡ limitada a un mÃ¡ximo de 3 fotografÃ­as.')
+    if (fotos.length > 3) return setError('La carga de evidencias está limitada a un máximo de 3 fotografías.')
 
     const item = {
       unidad_destino_id: paraInventario ? null : Number(destino),
@@ -117,7 +121,7 @@ export default function Requisicion() {
       display_destino: destinoInput
     }
 
-    setCarrito([...carrito, item])
+    agregarItemCompra(item)
     toast('Pieza agregada al carrito.')
     setPieza('')
     setCantidad('1')
@@ -127,15 +131,15 @@ export default function Requisicion() {
   }
 
   const enviar = async () => {
-    if (carrito.length === 0) return setError('El carrito estÃ¡ vacÃ­o.')
+    if (carrito.length === 0) return setError('El carrito está vacío.')
     setEnviando(true)
     try {
       for (const item of carrito) {
         await crearRequisicion(item)
       }
       setDestino(''); setDestinoInput(''); setDonante(''); setPieza(''); setCantidad('1'); setCosto(''); setUrgencia('Medio'); setNumeroParte(''); setOrigen('Compra'); setFotos([]); setError(''); setOrigenRefaccion(''); setAlmacen(''); setNumeroSerie(''); setParaInventario(false); setSelArticuloId(''); setOrdenTrabajoId('')
-      setCarrito([])
-      toast('Requisiciones enviadas â€” Compras las verÃ¡ en su panel.')
+      clearCompras()
+      toast('Requisiciones enviadas â€” Compras las verá en su panel.')
       getRequisiciones().then(setHistorial).catch(() => {})
     } catch (e) {
       setError('No se pudieron enviar todas las requisiciones.')
@@ -148,10 +152,10 @@ export default function Requisicion() {
     <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18, animation: 'fadeUp 0.35s ease' }}>
       <div>
         <Kicker texto="Piso de taller" />
-        <h2 style={h2Titulo}>RequisiciÃ³n de refacciones</h2>
-        <p style={subTitulo}>Solicitud completa con foto y origen de la pieza, para que Compras no tenga que pedir mÃ¡s datos.</p>
+        <h2 style={h2Titulo}>Requisición de refacciones</h2>
+        <p style={subTitulo}>Solicitud completa con foto y origen de la pieza, para que Compras no tenga que pedir más datos.</p>
       </div>
-      <div data-tour="reqform" style={{ background: '#fff', border: '1px solid #E7E0D2', borderRadius: 14, padding: 26, boxShadow: '0 1px 2px rgba(20,24,29,0.05)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div data-tour="reqform" style={{ background: 'var(--bg-card)', border: '1px solid #E7E0D2', borderRadius: 14, padding: 26, boxShadow: '0 1px 2px rgba(20,24,29,0.05)', display: 'flex', flexDirection: 'column', gap: 20 }}>
         
         {/* Nullable Destination trigger */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none', fontSize: 14, fontWeight: 700, color: '#16191E' }}>
@@ -165,7 +169,7 @@ export default function Requisicion() {
             }}
             style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#F2620F' }}
           />
-          ðŸ“¦ Agregar directamente al inventario general del almacÃ©n
+          📦 Agregar directamente al inventario general del almacén
         </label>
 
           {!paraInventario && (
@@ -195,7 +199,7 @@ export default function Requisicion() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <label style={etiqueta}>
             Tipo de Origen
-            <span style={ayudaCampo}>Â¿CÃ³mo se resolverÃ¡ esta requisiciÃ³n?</span>
+            <span style={ayudaCampo}>¿Cómo se resolverá esta requisición?</span>
             <select
               value={origen}
               onChange={(e) => {
@@ -210,14 +214,14 @@ export default function Requisicion() {
             </select>
           </label>
           <label style={etiqueta}>
-            Orden de Trabajo (Folio de Taller)
-            <span style={ayudaCampo}>Si la requisiciÃ³n pertenece a una orden activa de taller</span>
+            Orden de Trabajo (Folio de Taller) *
+              <span style={ayudaCampo}>Toda requisición debe pertenecer a una OT (Gatekeeper)</span>
             <select
               value={ordenTrabajoId}
               onChange={(e) => setOrdenTrabajoId(e.target.value)}
               style={{ padding: '10px', border: '1px solid #D8D2C4', borderRadius: 8, fontSize: 14 }}
             >
-              <option value="">-- Opcional --</option>
+              <option value="">-- Selecciona una Orden de Trabajo --</option>
               {ordenesTrabajo.filter(ot => ot.estado === 'Activa').map((ot) => (
                 <option key={ot.id} value={ot.id}>
                   {ot.folio} - {(ot.unidad?.id_unidad || `Unidad ${ot.unidad?.id || '?'}`)} ({ot.diagnostico})
@@ -234,11 +238,11 @@ export default function Requisicion() {
               <select
                 value={donante}
                 onChange={(e) => { setDonante(e.target.value); limpiarError() }}
-                style={{ padding: 12, border: '1px solid #F0C4A4', borderRadius: 9, fontSize: 15, background: '#fff' }}
+                style={{ padding: 12, border: '1px solid #F0C4A4', borderRadius: 9, fontSize: 15, background: 'var(--bg-card)' }}
               >
                 <option value="">Selecciona unidad Yonkeâ€¦</option>
                 {donanteOpts.map((t) => (
-                  <option key={t.id} value={String(t.id)}>{(t.vin || t.id_unidad) + ' Â· Yonke donante'}</option>
+                  <option key={t.id} value={String(t.id)}>{(t.vin || t.id_unidad) + ' · Yonke donante'}</option>
                 ))}
               </select>
               <span style={ayudaCampo}>Solo unidades con estado Yonke pueden donar piezas.</span>
@@ -251,7 +255,7 @@ export default function Requisicion() {
                 onChange={(e) => { setCosto(e.target.value); limpiarError() }}
                 placeholder="0.00"
                 min={0}
-                style={{ padding: 12, border: '1px solid #F0C4A4', borderRadius: 9, fontSize: 15, background: '#fff' }}
+                style={{ padding: 12, border: '1px solid #F0C4A4', borderRadius: 9, fontSize: 15, background: 'var(--bg-card)' }}
               />
               <span style={ayudaCampo}>
                 Registra el costo referencial o valor comercial estimado de esta pieza.
@@ -264,7 +268,7 @@ export default function Requisicion() {
 
         {origen === 'Inventario' ? (
           <label style={etiqueta}>
-            VIN (Identificador Ãšnico)
+            VIN (Identificador Único)
             <input
               type="text"
               value={numeroSerie}
@@ -277,7 +281,7 @@ export default function Requisicion() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <label style={etiqueta}>
-                VIN (Identificador Ãšnico)
+                VIN (Identificador Único)
                 <input
                   type="text"
                   value={numeroSerie}
@@ -360,8 +364,8 @@ export default function Requisicion() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
-            Evidencias FotogrÃ¡ficas <span style={{ color: '#F2620F' }}>*</span>
-            <Ayuda tip="Obligatoria: hasta un mÃ¡ximo de 3 fotografÃ­as de la pieza o su VIN." />
+            Evidencias Fotográficas <span style={{ color: '#F2620F' }}>*</span>
+            <Ayuda tip="Obligatoria: hasta un máximo de 3 fotografías de la pieza o su VIN." />
           </span>
           <input
             id="foto-pieza"
@@ -373,7 +377,7 @@ export default function Requisicion() {
             onChange={(e) => {
               const files = Array.from(e.target.files ?? [])
               if (fotos.length + files.length > 3) {
-                setError('La carga de evidencias estÃ¡ limitada a un mÃ¡ximo de 3 fotografÃ­as.')
+                setError('La carga de evidencias está limitada a un máximo de 3 fotografías.')
                 return
               }
               setFotos((prev) => [...prev, ...files])
@@ -396,7 +400,7 @@ export default function Requisicion() {
             {fotos.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {fotos.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#fff', border: '1px solid #D8D2C4', borderRadius: 8, padding: 8 }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: 'var(--bg-card)', border: '1px solid #D8D2C4', borderRadius: 8, padding: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <img src={URL.createObjectURL(f)} alt="preview" style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', border: '1px solid #D8D2C4' }} />
                       <span style={{ fontSize: 13.5, color: '#16191E', fontWeight: 600 }}>{f.name} ({Math.round(f.size/1024)} KB)</span>
@@ -414,16 +418,16 @@ export default function Requisicion() {
                     </button>
                   </div>
                 ))}
-                {fotos.length < 3 && <span style={{ fontSize: 12.5, color: '#6F6A60', fontWeight: 600, marginTop: 4 }}>+ Agregar otra fotografÃ­a (mÃ¡x. 3)</span>}
+                {fotos.length < 3 && <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4 }}>+ Agregar otra fotografía (máx. 3)</span>}
               </div>
             ) : (
-              <span style={{ fontSize: 14, color: '#6F6A60', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span>ðŸ“· Toca para adjuntar fotografÃ­a (mÃ¡x. 3)</span>
-                <span style={{ fontSize: 12, opacity: 0.8 }}>o arrastra y suelta tu archivo aquÃ­ (Drag and Drop)</span>
+              <span style={{ fontSize: 14, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span>📷 Toca para adjuntar fotografía (máx. 3)</span>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>o arrastra y suelta tu archivo aquí (Drag and Drop)</span>
               </span>
             )}
           </label>
-          <span style={{ fontSize: 12.5, color: '#6F6A60' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
             La foto evita compras a ciegas: Compras ve la pieza o su etiqueta o VIN exacto.
           </span>
         </div>
@@ -476,12 +480,12 @@ export default function Requisicion() {
             <h4 style={{ margin: '0 0 10px', fontSize: 15 }}>🛒 Carrito de Piezas</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {carrito.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, background: '#fff', padding: 10, borderRadius: 6, border: '1px solid #F0C4A4' }}>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, background: 'var(--bg-card)', padding: 10, borderRadius: 6, border: '1px solid #F0C4A4' }}>
                   <div>
                     <strong>{item.cantidad}x {item.display_pieza}</strong>
-                    <div style={{ color: '#6F6A60', marginTop: 4 }}>Urgencia: {item.urgencia} | Origen: {item.origen}</div>
+                    <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>Urgencia: {item.urgencia} | Origen: {item.origen}</div>
                   </div>
-                  <button onClick={() => setCarrito(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: '#C53030', cursor: 'pointer' }}>❌</button>
+                  <button onClick={() => removerItemCompra(idx)} style={{ background: 'transparent', border: 'none', color: '#C53030', cursor: 'pointer' }}>❌</button>
                 </div>
               ))}
             </div>
@@ -495,7 +499,7 @@ export default function Requisicion() {
       </div>
 
       {/* Historial de Requisiciones para el Taller */}
-      <div style={{ background: '#fff', border: '1px solid #E7E0D2', borderRadius: 14, padding: 26, boxShadow: '0 1px 2px rgba(20,24,29,0.05)', marginTop: 20 }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid #E7E0D2', borderRadius: 14, padding: 26, boxShadow: '0 1px 2px rgba(20,24,29,0.05)', marginTop: 20 }}>
         <h3 style={{ ...h2Titulo, fontSize: 22, margin: '0 0 16px' }}>Historial de Requisiciones</h3>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
@@ -521,7 +525,7 @@ export default function Requisicion() {
             ))}
             {historial.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: 20, textAlign: 'center', color: '#6F6A60' }}>No hay requisiciones recientes.</td>
+                <td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No hay requisiciones recientes.</td>
               </tr>
             )}
           </tbody>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import Kicker from '../components/Kicker'
 import { SortTh, TablaFooter } from '../components/TablaControls'
-import { ApiError, getOrdenesTrabajo, crearOrdenTrabajo, getResponsablesTaller, crearResponsableTaller, type ResponsableTaller, type OrdenTrabajoApi } from '../lib/api'
+import { ApiError, getOrdenesTrabajo, crearOrdenTrabajo, actualizarOrdenTrabajo, getResponsablesTaller, crearResponsableTaller, type ResponsableTaller, type OrdenTrabajoApi } from '../lib/api'
 import { useDemo } from '../lib/demo'
 import { badge, card, FD, h2Titulo, subTitulo, tdCell, thCell, theadRow } from '../lib/estilos'
 import { useTabla } from '../lib/useTabla'
@@ -11,12 +11,15 @@ const etiqueta: CSSProperties = { display: 'flex', flexDirection: 'column', gap:
 
 const ROLES_TECNICOS = ['Mecánico A', 'Mecánico B', 'Auxiliar', 'Termoquineros']
 
-export default function OrdenesTrabajo() {
+export default function OrdenesTrabajo({ asTab: _asTab }: { asTab?: boolean } = {}) {
   const { unidades, toast } = useDemo()
   const [reparaciones, setReparaciones] = useState<OrdenTrabajoApi[]>([])
   const [responsables, setResponsables] = useState<ResponsableTaller[]>([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+    const [otSeleccionada, setOtSeleccionada] = useState<OrdenTrabajoApi | null>(null)
+    const [actualizando, setActualizando] = useState(false)
+
 
   const modal = (titulo: string, contenido: ReactNode, onGuardar: () => void, onCerrar: () => void) => (
     <div
@@ -93,13 +96,25 @@ export default function OrdenesTrabajo() {
       setReparaciones(ops)
       setResponsables(resps)
     } catch (e) {
-      toast('No se pudieron cargar las órdenes de trabajo.')
+        setError('No tienes permisos para ver esta sección o hubo un error del servidor.')
     } finally {
       setCargando(false)
     }
   }, [toast])
 
   useEffect(() => { void cargar() }, [cargar])
+
+  
+  const renderEstado = (estado?: string) => {
+    switch (estado) {
+      case 'Liberada Parcial':
+        return <span style={badge('#FEF3C7', '#B45309', '#FCD34D')}>✔️ Parcial</span>
+      case 'Liberada':
+        return <span style={badge('#D1FAE5', '#065F46', '#6EE7B7')}>✔️ Liberada</span>
+      default:
+        return <span style={badge('#DBEAFE', '#1E40AF', '#93C5FD')}>⏳ En Proceso</span>
+    }
+  }
 
   const handleCrearResponsable = async () => {
     if (!respNombre.trim()) return setError('Ingresa el nombre del responsable.')
@@ -223,7 +238,7 @@ export default function OrdenesTrabajo() {
             Cargando órdenes de trabajo...
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 700 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
             <thead>
               <tr style={theadRow}>
                 <SortTh col="unidad"      label="Unidad"       sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
@@ -237,8 +252,9 @@ export default function OrdenesTrabajo() {
             </thead>
             <tbody>
               {ctrl.filasPagina.map((ot) => (
-                <tr key={ot.id} className="hv-fila">
+                <tr key={ot.id} className="hv-fila" onClick={() => setOtSeleccionada(ot)} style={{ cursor: "pointer", background: otSeleccionada?.id === ot.id ? "var(--bg-active)" : "inherit" }}>
                   <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 16 }}>{ot.unidad.id_unidad}</td>
+                    <td style={tdCell}>{renderEstado(ot.estado)}</td>
                   <td style={{ ...tdCell, fontWeight: 600 }}>{ot.responsable.nombre}</td>
                   <td style={tdCell}>
                     <span style={badge('#E3ECF7', '#1B4E8C', '#9FC0E4')}>{ot.responsable.rol}</span>
@@ -422,6 +438,81 @@ export default function OrdenesTrabajo() {
           () => void handleCrearResponsable(),
           () => setNuevoResp(false)
         )}
+    
+      {otSeleccionada && !nuevaOT && !nuevoResp && (
+        <div onClick={() => setOtSeleccionada(null)} style={{ position: 'fixed', inset: 0, background: 'var(--bg-overlay)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 14, maxWidth: 600, width: '100%', padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', borderTop: '5px solid #1E40AF', animation: 'fadeUp 0.2s ease', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, margin: '0 0 4px', color: 'var(--text-main)' }}>
+                  Orden de Trabajo: {otSeleccionada.unidad.id_unidad}
+                </h3>
+                {renderEstado(otSeleccionada.estado)}
+              </div>
+              <button onClick={() => setOtSeleccionada(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
+            </div>
+            
+            <div style={{ background: 'var(--bg-input)', padding: 16, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+              <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Diagnóstico de Ingreso:</p>
+              <p style={{ margin: 0, color: 'var(--text-muted)' }}>{otSeleccionada.diagnostico}</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1, background: 'var(--bg-input)', padding: 16, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Responsable:</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)' }}>{otSeleccionada.responsable.nombre}</p>
+              </div>
+              <div style={{ flex: 1, background: 'var(--bg-input)', padding: 16, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Materiales:</p>
+                <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--text-muted)' }}>
+                  {otSeleccionada.materiales.map((m, i) => <li key={i}>{m.cantidad}x {m.pieza}</li>)}
+                  {otSeleccionada.materiales.length === 0 && <li>Ninguno</li>}
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: 16 }}>Actualizar Estado</h4>
+              
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  disabled={actualizando || otSeleccionada.estado === 'Liberada Parcial'}
+                  onClick={async () => {
+                    setActualizando(true);
+                    try {
+                      await actualizarOrdenTrabajo(otSeleccionada.id, { estado: 'Liberada Parcial' });
+                      toast('Unidad liberada con observaciones (Warning)');
+                      setReparaciones(reparaciones.map(r => r.id === otSeleccionada.id ? { ...r, estado: 'Liberada Parcial' } : r));
+                      setOtSeleccionada({ ...otSeleccionada, estado: 'Liberada Parcial' });
+                    } catch (e) { setError('Error al actualizar') }
+                    setActualizando(false);
+                  }}
+                  style={{ flex: 1, padding: '14px', background: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D', borderRadius: 8, fontWeight: 'bold', fontSize: 14, cursor: actualizando ? 'wait' : 'pointer' }}
+                >
+                  ⚠️ LIBERACIÓN PARCIAL
+                </button>
+                <button
+                  disabled={actualizando || otSeleccionada.estado === 'Liberada'}
+                  onClick={async () => {
+                    setActualizando(true);
+                    try {
+                      await actualizarOrdenTrabajo(otSeleccionada.id, { estado: 'Liberada' });
+                      toast('Unidad liberada completamente');
+                      setReparaciones(reparaciones.map(r => r.id === otSeleccionada.id ? { ...r, estado: 'Liberada' } : r));
+                      setOtSeleccionada({ ...otSeleccionada, estado: 'Liberada' });
+                    } catch (e) { setError('Error al actualizar') }
+                    setActualizando(false);
+                  }}
+                  style={{ flex: 1, padding: '14px', background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: 8, fontWeight: 'bold', fontSize: 14, cursor: actualizando ? 'wait' : 'pointer' }}
+                >
+                  ✅ LIBERACIÓN TOTAL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   )
 }

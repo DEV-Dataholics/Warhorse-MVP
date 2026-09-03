@@ -22,6 +22,8 @@ export default function Dashboard() {
   const { selTractoId, setSelTractoId, toast } = useDemo()
   const navigate = useNavigate()
   const [dash, setDash] = useState<DashboardApi | null>(null)
+  
+  const [cargando, setCargando] = useState(true)
   const [ajustar, setAjustar] = useState(false)
   const [umbralForm, setUmbralForm] = useState('')
   const [ventanaForm, setVentanaForm] = useState('')
@@ -31,16 +33,25 @@ export default function Dashboard() {
   const [tipoUnidad, setTipoUnidad] = useState('Todos')
 
   const cargar = useCallback(async (seleccion: string, tipo: string, desde: string, hasta: string) => {
-    setDash(await getDashboard(seleccion || undefined, tipo === 'Todos' ? undefined : tipo, desde || undefined, hasta || undefined))
+    setCargando(true)
+    
+    try {
+      setDash(await getDashboard(seleccion || undefined, tipo === 'Todos' ? undefined : tipo, desde || undefined, hasta || undefined))
+    } catch (e) {
+      
+      setDash(null)
+    } finally {
+      setCargando(false)
+    }
   }, [])
 
   useEffect(() => {
     void cargar(selTractoId, tipoUnidad, fechaDesde, fechaHasta)
   }, [cargar, selTractoId, tipoUnidad, fechaDesde, fechaHasta])
 
-  if (!dash) return null
+  if (cargando) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Cargando tablero...</div>
 
-  const kpis = [
+  const kpis = !dash ? [] : [
     { label: 'Gasto Diésel', valor: fmt(dash.kpis.diesel), sub: 'Histórico cargado · ' + dash.ranking.length + ' tractos', Icon: Droplets },
     { label: 'Gasto Refacciones', valor: fmt(dash.kpis.refacciones), sub: 'Incluye piezas de yonke estimadas', Icon: Truck },
     { label: 'Gasto Taller', valor: fmt(dash.kpis.taller), sub: 'Mano de obra y diagnóstico', Icon: Wrench },
@@ -48,9 +59,9 @@ export default function Dashboard() {
   ]
 
   // Barras en el orden de flota del demo; el ranking del server marca la crítica
-  const barras = dash.ranking.slice().sort((a, b) => a.id_unidad.localeCompare(b.id_unidad))
-  const maxCosto = Math.max(1, ...dash.ranking.map((t) => t.costo_total))
-  const sel = dash.seleccion
+  const barras = dash ? dash.ranking.slice().sort((a, b) => a.id_unidad.localeCompare(b.id_unidad)) : []
+  const maxCosto = dash && dash.ranking.length > 0 ? Math.max(1, ...dash.ranking.map((t) => t.costo_total)) : 1
+  const sel = dash?.seleccion
 
   const ef = sel?.eficiencia_km_l ?? null
   const gaugeDeg = ef === null ? -90 : Math.round((Math.min(3, Math.max(0, ef)) / 3) * 180 - 90)
@@ -63,8 +74,8 @@ export default function Dashboard() {
 
   const abrirAjuste = () => {
     setErrorModal('')
-    setUmbralForm(String(dash.parametros.umbral_pct))
-    setVentanaForm(String(dash.parametros.ventana_meses))
+    if (dash) setUmbralForm(String(dash.parametros.umbral_pct))
+    if (dash) setVentanaForm(String(dash.parametros.ventana_meses))
     setAjustar(true)
   }
 
@@ -275,7 +286,7 @@ export default function Dashboard() {
               Revisar unidades <ArrowRight size={18} />
             </button>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--text-muted)' }}>
-              Umbral {dash.parametros.umbral_pct}% · Ventana {dash.parametros.ventana_meses} meses
+              Umbral {dash?.parametros?.umbral_pct || 0}% · Ventana {dash?.parametros?.ventana_meses || 0} meses
               <button
                 onClick={abrirAjuste}
                 className="hv-op85"

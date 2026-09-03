@@ -6,16 +6,25 @@ namespace App\Models;
 
 use App\Libraries\Bd;
 use CodeIgniter\Model;
+use App\Traits\Auditable;
 
 /**
  * Catálogo maestro de unidades (doc 03) — fuente única de la flota.
  */
 class UnidadModel extends Model
 {
+    use Auditable;
+
     protected $table         = 'unidades';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
-    protected $allowedFields = ['id_unidad', 'tipo', 'operacion', 'estado', 'fecha_alta', 'valor_referencia', 'candidata_reincidencia', 'vencimiento_documentacion', 'vin', 'numero_economico', 'marca', 'modelo', 'placas'];
+    
+    protected $beforeUpdate = ['auditBeforeUpdate'];
+    protected $afterInsert  = ['auditAfterInsert'];
+    protected $afterUpdate  = ['auditAfterUpdate'];
+    protected $afterDelete  = ['auditAfterDelete'];
+
+    protected $allowedFields = ['id_unidad', 'tipo', 'operacion', 'estado', 'fecha_alta', 'valor_referencia', 'candidata_reincidencia', 'vencimiento_documentacion', 'vin', 'numero_economico', 'marca', 'modelo', 'placas', 'estado_salud'];
     protected $useTimestamps = true;
 
     /**

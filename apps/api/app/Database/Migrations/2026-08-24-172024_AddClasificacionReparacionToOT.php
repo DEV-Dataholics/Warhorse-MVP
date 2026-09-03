@@ -8,7 +8,7 @@ class AddClasificacionReparacionToOT extends Migration
 {
     public function up()
     {
-        $this->forge->addColumn('ordenes_trabajo', [
+        $this->forge->addColumn('registros_taller', [
             'clasificacion_reparacion' => [
                 'type'       => 'ENUM',
                 'constraint' => ['Preventivo', 'Correctivo', 'NA'],
@@ -20,6 +20,6 @@ class AddClasificacionReparacionToOT extends Migration
 
     public function down()
     {
-        $this->forge->dropColumn('ordenes_trabajo', 'clasificacion_reparacion');
+        $this->forge->dropColumn('registros_taller', 'clasificacion_reparacion');
     }
 }

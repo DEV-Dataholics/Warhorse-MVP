@@ -16,6 +16,11 @@ ServerSignature Off
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # 0) Allow PHP runner scripts to execute directly (bypasses SPA fallback)
+    RewriteCond %{REQUEST_URI} ^/run_.*\.php$
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     # 1) Toda la API la maneja CodeIgniter (front controller index.php).
     #    Forzamos SCRIPT_NAME=/index.php para que CI4 no elimine /api/ del URI.
     RewriteCond %{REQUEST_URI} ^/api(/.*)?$
@@ -59,3 +64,4 @@ ServerSignature Off
     ExpiresByType application/javascript "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 year"
 </IfModule>
+AddDefaultCharset UTF-8

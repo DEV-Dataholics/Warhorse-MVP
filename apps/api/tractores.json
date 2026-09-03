@@ -1,0 +1,422 @@
+[
+  {
+    "id_unidad": "UNIDAD",
+    "placas": "PLACAS",
+    "marca_ano": "MARCA Y  A\u00d1O",
+    "vin": "VIN"
+  },
+  {
+    "id_unidad": "WH04",
+    "placas": "10ER4M",
+    "marca_ano": "INTERNATIONAL-2011",
+    "vin": "3HSDJSJR3BN435149"
+  },
+  {
+    "id_unidad": "WH16",
+    "placas": "91ES9X",
+    "marca_ano": "KENWORTH-2010",
+    "vin": "1XKAD49X0AJ257935"
+  },
+  {
+    "id_unidad": "WH17",
+    "placas": "80ER2N",
+    "marca_ano": "KENWORTH-2012",
+    "vin": "1XKAD49X9CJ304981"
+  },
+  {
+    "id_unidad": "WH48",
+    "placas": "78ER8N",
+    "marca_ano": "INTERNATIONAL-2017",
+    "vin": "3HSDJAPR0HN501165"
+  },
+  {
+    "id_unidad": "WH50",
+    "placas": "21ER9N",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHHDR4JSJX0394"
+  },
+  {
+    "id_unidad": "WH52",
+    "placas": "51ER9N",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHHDR0KSKY2398"
+  },
+  {
+    "id_unidad": "WH57",
+    "placas": "36ER1P",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSDZAPR1JN547182"
+  },
+  {
+    "id_unidad": "WH56",
+    "placas": "35ER1P",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSDZAPR5JN632347"
+  },
+  {
+    "id_unidad": "WH67",
+    "placas": "75ER9Y",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSKZAPR3JN598948"
+  },
+  {
+    "id_unidad": "WH68",
+    "placas": "76ER9Y",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSKZAPR2JN599024"
+  },
+  {
+    "id_unidad": "WH76",
+    "placas": "78ER2Z",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3ARJHHDR8JSJP6764"
+  },
+  {
+    "id_unidad": "WH78",
+    "placas": "89ER3Z",
+    "marca_ano": "VOLVO-2019",
+    "vin": "4V4W19EG5KN216888"
+  },
+  {
+    "id_unidad": "WH82",
+    "placas": "15ER5Z",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHHDR8JSJZ1782"
+  },
+  {
+    "id_unidad": "WH83",
+    "placas": "41ER5Z",
+    "marca_ano": "VOLVO-2020",
+    "vin": "4V4WC9EG7LN225507"
+  },
+  {
+    "id_unidad": "WH84",
+    "placas": "42ER5Z",
+    "marca_ano": "VOLVO-2020",
+    "vin": "4V4WC9EG0LN225638"
+  },
+  {
+    "id_unidad": "WH88",
+    "placas": "02ES7R",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSDZAPR3JN424922"
+  },
+  {
+    "id_unidad": "WH89",
+    "placas": "29ER6Z",
+    "marca_ano": "FREIGHTLINER-2013",
+    "vin": "1FUJGEDV3DSBZ1759"
+  },
+  {
+    "id_unidad": "WH90",
+    "placas": "30ER6Z",
+    "marca_ano": "FREIGHTLINER-2015",
+    "vin": "3AKGGED5FSGK3408"
+  },
+  {
+    "id_unidad": "WH94",
+    "placas": "03ES7R",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HSDZAPR9JN424889"
+  },
+  {
+    "id_unidad": "WH95",
+    "placas": "01ES7R",
+    "marca_ano": "INTERNATIONAL-2018",
+    "vin": "3HCDZAPR3JL537731"
+  },
+  {
+    "id_unidad": "WH116",
+    "placas": "30ES3U",
+    "marca_ano": "INTERNATIANAL-2016",
+    "vin": "1HSDJAPR3GH003311"
+  },
+  {
+    "id_unidad": "WH118",
+    "placas": "29ES3U",
+    "marca_ano": "INTERNATIANAL-2016",
+    "vin": "EHCDJAPR3GL401423"
+  },
+  {
+    "id_unidad": "WH124",
+    "placas": "74ES7L",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHLDR4LSMD6109"
+  },
+  {
+    "id_unidad": "WH125",
+    "placas": "32ES3U",
+    "marca_ano": "INTERNATIANAL-2019",
+    "vin": "3HSDZAPR1KN438643"
+  },
+  {
+    "id_unidad": "WH126",
+    "placas": "56ES8L",
+    "marca_ano": "VOLVO-2019",
+    "vin": "4V4NC9EH4KN211874"
+  },
+  {
+    "id_unidad": "WH128",
+    "placas": "55ES8L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV4KLKG1075"
+  },
+  {
+    "id_unidad": "WH129",
+    "placas": "53ES8L",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHLDR9JSJR7030"
+  },
+  {
+    "id_unidad": "WH130",
+    "placas": "54ES8L",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHTDVXLSLP2918"
+  },
+  {
+    "id_unidad": "WH135",
+    "placas": "07ES9L",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHHDR0LSLN9434"
+  },
+  {
+    "id_unidad": "WH136",
+    "placas": "37ES9L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV5KLKX4700"
+  },
+  {
+    "id_unidad": "WH137",
+    "placas": "38ES9L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV5KLKX44695"
+  },
+  {
+    "id_unidad": "WH138",
+    "placas": "40ES9L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV8KLKX4691"
+  },
+  {
+    "id_unidad": "WH139",
+    "placas": "36ES9L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3ARJHLDV4KSKX47908"
+  },
+  {
+    "id_unidad": "WH140",
+    "placas": "39ES9L",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDV5KSKX4703"
+  },
+  {
+    "id_unidad": "WH146",
+    "placas": "64ES1M",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "1FUJHLDV4LLLU9498"
+  },
+  {
+    "id_unidad": "WH147",
+    "placas": "62ES1M",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDR7KSKB2248"
+  },
+  {
+    "id_unidad": "WH148",
+    "placas": "63ES1M",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "1FUJHLDV2LLLU9497"
+  },
+  {
+    "id_unidad": "WH152",
+    "placas": "20ES8R",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHTDV8LSLX7485"
+  },
+  {
+    "id_unidad": "WH153",
+    "placas": "21ES8R",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHLDR1LSMC6279"
+  },
+  {
+    "id_unidad": "WH154",
+    "placas": "18ES8R",
+    "marca_ano": "KENWORTH-2016",
+    "vin": "1XKYD48X7GJ466582"
+  },
+  {
+    "id_unidad": "WH155",
+    "placas": "19ES8R",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV7KLKJ8824"
+  },
+  {
+    "id_unidad": "WH159",
+    "placas": "83ES8T",
+    "marca_ano": "FREIGHTLINER-2020",
+    "vin": "3AKJHLDV8LSLU5426"
+  },
+  {
+    "id_unidad": "WH160",
+    "placas": "86ES8T",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJGEDV1KDKK1175"
+  },
+  {
+    "id_unidad": "WH161",
+    "placas": "85ES8T",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJGEDVXKDKK1174"
+  },
+  {
+    "id_unidad": "WH166",
+    "placas": "74ES1Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDRXKSKX4022"
+  },
+  {
+    "id_unidad": "WH167",
+    "placas": "68ES1Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "34KJHLDV1JSKD1230"
+  },
+  {
+    "id_unidad": "WH168",
+    "placas": "69ES1Y",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHLDV9JSJL6046"
+  },
+  {
+    "id_unidad": "WH169",
+    "placas": "67ES1Y",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHLDV8JSKB2299"
+  },
+  {
+    "id_unidad": "WH170",
+    "placas": "71ES1Y",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHLDV0JSJL6050"
+  },
+  {
+    "id_unidad": "WH172",
+    "placas": "70ES1Y",
+    "marca_ano": "FREIGHTLINER-2018",
+    "vin": "3AKJHLDV1JSJL6056"
+  },
+  {
+    "id_unidad": "WH174",
+    "placas": "73ES1Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV0KLKG1073"
+  },
+  {
+    "id_unidad": "WH175",
+    "placas": "33ES2Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV4KLKG1089"
+  },
+  {
+    "id_unidad": "WH184",
+    "placas": "55ES5Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDR5KLKX4067"
+  },
+  {
+    "id_unidad": "WH185",
+    "placas": "32ES2Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV3KLKG1083"
+  },
+  {
+    "id_unidad": "WH191",
+    "placas": "56ES5Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDR7KSKT3928"
+  },
+  {
+    "id_unidad": "WH196",
+    "placas": "19ES4Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDR1KLKX4015"
+  },
+  {
+    "id_unidad": "WH197",
+    "placas": "28ES3U",
+    "marca_ano": "INTERNATIANAL-2016",
+    "vin": "3HCDJAPR8GL401420"
+  },
+  {
+    "id_unidad": "WH511",
+    "placas": "23ES8T",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV8KLKJ8766"
+  },
+  {
+    "id_unidad": "WH512",
+    "placas": "22ES8T",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV9KLKJ8792"
+  },
+  {
+    "id_unidad": "WH513",
+    "placas": "24ES8T",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "1FUJHLDV0KLKJ8762"
+  },
+  {
+    "id_unidad": "WH220",
+    "placas": "34ES7Y",
+    "marca_ano": "FREIGHTLINER-2021",
+    "vin": "3AKJHLDV4MSMN5293"
+  },
+  {
+    "id_unidad": "WH221",
+    "placas": "36ES7Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDV5KSKK1519"
+  },
+  {
+    "id_unidad": "WH224",
+    "placas": "38ES7Y",
+    "marca_ano": "FREIGHTLINER-2019",
+    "vin": "3AKJHLDV7KSKM3100"
+  },
+  {
+    "id_unidad": "TS01",
+    "placas": "ZTU874C",
+    "marca_ano": "CHEVROLET-2011",
+    "vin": "1GCNCPEX78Z418503"
+  },
+  {
+    "id_unidad": "TS14",
+    "placas": "ELJ679B",
+    "marca_ano": "VOLKSWAGEN- 2015",
+    "vin": "3VW3A7AJ5FM321898"
+  },
+  {
+    "id_unidad": "TS09",
+    "placas": "EB9012B",
+    "marca_ano": "CHEVROLET-2007",
+    "vin": "1GCHC24K67E510755"
+  },
+  {
+    "id_unidad": "TS20",
+    "placas": "ESZ312B",
+    "marca_ano": "JEEP- 2016",
+    "vin": "1C4PJLABXGW125849"
+  },
+  {
+    "id_unidad": "TS22",
+    "placas": "EE9136B",
+    "marca_ano": "RAM PICKUP 2500 -2013",
+    "vin": "3C6LR4BT2DG598683"
+  },
+  {
+    "id_unidad": "SE01",
+    "placas": "C25SBN4",
+    "marca_ano": "FORD EXPLORER-2016",
+    "vin": null
+  }
+]

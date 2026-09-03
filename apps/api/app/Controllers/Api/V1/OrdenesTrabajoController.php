@@ -98,10 +98,25 @@ final class OrdenesTrabajoController extends BaseController
             return RespuestasApi::error(404, 'not_found', 'Responsable de taller no encontrado.');
         }
 
+        // TKT-WAR-104: Anti-duplicidad de OTs
+        $otAbiertaOPausada = $db->table('ordenes_trabajo')
+            ->where('unidad_id', $datos['unidad_id'])
+            ->whereIn('estado', ['Activa', 'Pausada'])
+            ->get()->getRowArray();
+            
+        if ($otAbiertaOPausada) {
+            return RespuestasApi::error(409, 'conflict', 'Esta unidad ya tiene una OT ' . $otAbiertaOPausada['estado'] . '. Debe reactivarla o cerrarla.');
+        }
+
         $materiales = isset($datos['materiales']) ? json_encode($datos['materiales']) : '[]';
         $evidencias = isset($datos['archivos_evidencia']) ? json_encode($datos['archivos_evidencia']) : '[]';
 
         $db->transStart();
+
+        // TKT-WAR-103: Update Unit Health
+        $db->table('unidades')->where('id', $datos['unidad_id'])->update([
+            'estado_salud' => 'Inactivo en reparación'
+        ]);
 
         $db->table('ordenes_trabajo')->insert([
             'unidad_id'          => (int) $datos['unidad_id'],
@@ -127,6 +142,36 @@ final class OrdenesTrabajoController extends BaseController
             'folio'   => $folio,
             'message' => 'Orden de trabajo creada exitosamente.',
         ]);
+    }
+
+
+    // TKT-WAR-103 & TKT-WAR-104: Liberación y State Machine
+    public function liberar(int $id): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof \CodeIgniter\HTTP\IncomingRequest ? (array) $request->getJSON(true) : [];
+        
+        $tipoLiberacion = $datos['tipo'] ?? 'Total'; // 'Total' o 'Parcial'
+        
+        $db = \Config\Database::connect();
+        $ot = $db->table('ordenes_trabajo')->where('id', $id)->get()->getRowArray();
+        
+        if (!$ot) return RespuestasApi::error(404, 'not_found', 'OT no encontrada.');
+        if ($ot['estado'] === 'Cerrada') return RespuestasApi::error(409, 'conflict', 'La OT ya está cerrada.');
+        
+        $db->transStart();
+        
+        if ($tipoLiberacion === 'Parcial') {
+            $db->table('ordenes_trabajo')->where('id', $id)->update(['estado' => 'Pausada']);
+            $db->table('unidades')->where('id', $ot['unidad_id'])->update(['estado_salud' => 'Activo con Warning']);
+        } else {
+            $db->table('ordenes_trabajo')->where('id', $id)->update(['estado' => 'Cerrada']);
+            $db->table('unidades')->where('id', $ot['unidad_id'])->update(['estado_salud' => 'Activo 100%']);
+        }
+        
+        $db->transComplete();
+        
+        return $this->response->setJSON(['mensaje' => 'OT liberada (' . $tipoLiberacion . ') exitosamente.']);
     }
 
     public function tomarInventario(int $id): ResponseInterface

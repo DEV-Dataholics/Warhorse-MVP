@@ -49,6 +49,7 @@ final class DashboardService
         $refaccionesQuery = $db->table('requisiciones r')
             ->select('r.unidad_destino_id, SUM(COALESCE(r.costo_real, r.costo_estimado)) total')
             ->where('r.estado', 'Instalado')
+            ->where('r.es_caja_chica', 0) // Aislamiento Matemático de Caja Chica
             ->groupBy('r.unidad_destino_id');
         if ($desde) $refaccionesQuery->where('r.fecha_solicitud >=', $desde);
         if ($hasta) $refaccionesQuery->where('r.fecha_solicitud <=', $hasta);
@@ -155,12 +156,39 @@ final class DashboardService
             $elegida['costo_total'] = $dSel + $rSel + $tSel;
         }
 
+
+        // --- KPIs de Compras ---
+        $comprasFormal = $db->table('requisiciones')
+            ->selectSum('costo_real')
+            ->whereIn('estado', ['Comprado', 'En trayecto', 'Instalado'])
+            ->where('es_caja_chica', 0);
+        if ($desde) $comprasFormal->where('fecha_solicitud >=', $desde);
+        if ($hasta) $comprasFormal->where('fecha_solicitud <=', $hasta);
+        $totalComprasFormal = (float) $comprasFormal->get()->getRow()->costo_real;
+
+        $comprasCajaChica = $db->table('requisiciones')
+            ->selectSum('costo_real')
+            ->whereIn('estado', ['Comprado', 'En trayecto', 'Instalado'])
+            ->where('es_caja_chica', 1);
+        if ($desde) $comprasCajaChica->where('fecha_solicitud >=', $desde);
+        if ($hasta) $comprasCajaChica->where('fecha_solicitud <=', $hasta);
+        $totalCajaChica = (float) $comprasCajaChica->get()->getRow()->costo_real;
+        
+        $reqsPendientes = $db->table('requisiciones')
+            ->whereIn('estado', ['En aprobación', 'Cotizado'])
+            ->countAllResults();
+
         return [
             'kpis' => [
                 'diesel'               => $dieselKpi,
                 'refacciones'          => $refKpi,
                 'taller'               => $tallerKpi,
                 'costo_real_acumulado' => $dieselKpi + $refKpi + $tallerKpi,
+            ],
+            'kpis_compras' => [
+                'total_compras_formal' => $totalComprasFormal,
+                'total_caja_chica'     => $totalCajaChica,
+                'reqs_pendientes'      => $reqsPendientes
             ],
             'ranking'    => $ranking,
             'seleccion'  => $elegida === null ? null : $this->analizarUnidad($elegida, $parametros),

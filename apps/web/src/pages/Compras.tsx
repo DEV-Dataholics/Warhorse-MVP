@@ -350,7 +350,7 @@ export default function Compras() {
           }
         />
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 850 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 850 }}>
             <thead>
               <tr style={theadRow}>
                 <th style={{ padding: '12px 10px', borderBottom: '2px solid rgba(197, 160, 89, 0.3)', textAlign: 'left' }}>

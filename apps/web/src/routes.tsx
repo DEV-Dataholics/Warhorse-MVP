@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import AppLayout from './components/AppLayout'
 import { DemoProvider, rutaDeLanding, useDemo } from './lib/demo'
 import Login from './pages/Login'
+import Admin from './pages/Admin'
 import DefinirPassword from './pages/DefinirPassword'
 import Dashboard from './pages/Dashboard'
 import Ficha from './pages/Ficha'
@@ -14,6 +15,7 @@ import Catalogo from './pages/Catalogo'
 import Usuarios from './pages/Usuarios'
 import Reportes from './pages/Reportes'
 import OrdenesTrabajo from './pages/OrdenesTrabajo'
+import OperadorApp from './pages/OperadorApp'
 
 /**
  * Guarda por módulo (RF-USR-03): la visibilidad es UX; la seguridad real la
@@ -32,13 +34,15 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/operador" element={<OperadorApp />} />
       <Route path="/definir-password" element={<DefinirPassword />} />
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<RutaModulo modulo="dashboard"><Dashboard /></RutaModulo>} />
         <Route path="/ficha/:id" element={<Ficha />} />
         <Route path="/requisicion" element={<RutaModulo modulo="requisicion"><Requisicion /></RutaModulo>} />
         <Route path="/taller" element={<RutaModulo modulo="taller"><Taller /></RutaModulo>} />
-        <Route path="/compras" element={<RutaModulo modulo="compras"><Compras /></RutaModulo>} />
+                <Route path="/compras" element={<RutaModulo modulo="compras"><Compras /></RutaModulo>} />
+        <Route path="/admin" element={<RutaModulo modulo="admin"><Admin /></RutaModulo>} />
         <Route path="/diesel" element={<RutaModulo modulo="diesel"><Diesel /></RutaModulo>} />
         <Route path="/catalogo" element={<RutaModulo modulo="catalogo"><Catalogo /></RutaModulo>} />
         <Route path="/usuarios" element={<RutaModulo modulo="usuarios"><Usuarios /></RutaModulo>} />

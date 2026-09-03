@@ -39,7 +39,8 @@ final class AlmacenController extends BaseController
 
         if (! $this->validateData($datos, [
             'nombre_normalizado' => 'required|is_unique[catalogo_piezas.nombre_normalizado]|min_length[3]|max_length[180]',
-            'categoria'          => 'required|in_list[Frenos,Suspensión,Preventivos,Filtros,Aceites,Otros]',
+            'categoria'          => 'required|in_list[Frenos,Suspensión,Preventivos,Filtros,Aceites,Otros,Yonke]',
+            'unidad_donante_id'  => 'permit_empty|is_natural_no_zero',
             'numero_parte'       => 'permit_empty|max_length[80]',
             'precio_referencia'  => 'required|numeric|greater_than[0]',
             'stock_minimo'       => 'permit_empty|is_natural',
@@ -57,6 +58,12 @@ final class AlmacenController extends BaseController
         $stockMax = isset($datos['stock_maximo']) && $datos['stock_maximo'] !== '' ? (int) $datos['stock_maximo'] : null;
         $stockAct = isset($datos['stock_actual']) && $datos['stock_actual'] !== '' ? (int) $datos['stock_actual'] : 0;
         $validar  = isset($datos['validar_limites']) ? (int) filter_var($datos['validar_limites'], FILTER_VALIDATE_BOOLEAN) : 0;
+        $categoria = $datos['categoria'] ?? 'Otros';
+        $unidadDonanteId = isset($datos['unidad_donante_id']) && $datos['unidad_donante_id'] !== '' ? (int) $datos['unidad_donante_id'] : null;
+
+        if ($categoria === 'Yonke' && empty($unidadDonanteId)) {
+            return RespuestasApi::error(422, 'validation', 'La categoría Yonke obliga a registrar la unidad donante.', [['La categoría Yonke obliga a registrar la unidad donante.']]);
+        }
 
         if ($stockMin !== null && $stockMax !== null && $stockMin > $stockMax) {
             return RespuestasApi::error(422, 'validation', 'El stock mínimo no puede ser mayor que el stock máximo.', ['stock_minimo' => ['El stock mínimo no puede ser mayor que el stock máximo.']]);

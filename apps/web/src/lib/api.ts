@@ -20,7 +20,7 @@ export class ApiError extends Error {
   }
 }
 
-async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+export async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     // Con FormData el navegador fija el boundary del multipart
     ...(opciones.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
@@ -414,6 +414,11 @@ export interface SeleccionDashboard {
 
 export interface DashboardApi {
   kpis: { diesel: number; refacciones: number; taller: number; costo_real_acumulado: number }
+  kpis_compras?: {
+    total_compras_formal: number
+    total_caja_chica: number
+    reqs_pendientes: number
+  }
   ranking: Array<{ id: number; id_unidad: string; costo_total: number; critico: boolean }>
   seleccion: SeleccionDashboard | null
   parametros: { umbral_pct: number; ventana_meses: number }
@@ -542,6 +547,10 @@ export function eliminarRequisicion(id: number): Promise<void> {
   return pedir<void>(`/requisiciones/${id}`, { method: 'DELETE' })
 }
 
+export async function getReporte(tipo: 'inventario' | 'compras-ot' | 'salud-flota' | 'inspecciones'): Promise<any[]> {
+  return pedir<any[]>(`/reportes/${tipo}`)
+}
+
 export async function getArticulosAlmacen(): Promise<ArticuloAlmacenApi[]> {
   const r = await pedir<{ data: ArticuloAlmacenApi[] }>('/almacen/articulos')
   return r.data
@@ -648,3 +657,7 @@ export function crearOrdenTrabajo(datos: {
 
 
 
+
+export function actualizarOrdenTrabajo(id: number, datos: { estado?: string; firmas?: any }): Promise<OrdenTrabajoApi> {
+  return pedir<OrdenTrabajoApi>(`/taller/ordenes/${id}`, { method: 'PATCH', body: JSON.stringify(datos) })
+}

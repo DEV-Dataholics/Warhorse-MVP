@@ -46,7 +46,7 @@ class UnidadModel extends Model
     public function listar(?string $estado, int $pagina, int $porPagina): array
     {
         $builder = $this->db->table('unidades u')
-            ->select('u.id, u.id_unidad, u.tipo, u.operacion, u.estado, u.valor_referencia, u.candidata_reincidencia, u.vencimiento_documentacion, u.vin, u.numero_economico, u.marca, u.modelo, u.placas, COALESCE(c.costo_real_acumulado, 0) AS costo_real_acumulado')
+            ->select('u.id, u.id_unidad, u.tipo, u.operacion, u.estado, u.fecha_alta, u.valor_referencia, u.candidata_reincidencia, u.vencimiento_documentacion, u.vin, u.numero_economico, u.marca, u.modelo, u.placas, COALESCE(c.costo_real_acumulado, 0) AS costo_real_acumulado')
             ->join('consolidado_unidad c', 'c.unidad_id = u.id', 'left');
 
         if ($estado !== null && $estado !== '') {

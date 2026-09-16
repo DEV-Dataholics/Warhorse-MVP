@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -169,8 +170,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const tipHide = useCallback(() => setTip(null), [])
 
   const recargarUnidades = useCallback(async () => {
-    setUnidades(await api.getUnidades())
+    try {
+      setUnidades(await api.getUnidades())
+    } catch {
+      // Si no hay sesión o token aún, se ignora hasta autenticar
+    }
   }, [])
+
+  useEffect(() => {
+    void recargarUnidades()
+  }, [recargarUnidades])
 
   const entrar = useCallback(async (email: string, password: string): Promise<Yo> => {
     await api.login(email, password)

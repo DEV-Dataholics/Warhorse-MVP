@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import Camion from '../components/Camion'
 import Kicker from '../components/Kicker'
 import { SortTh, TablaFooter, TablaToolbar } from '../components/TablaControls'
-import { ApiError, actualizarUnidad, crearUnidad, type UnidadApi } from '../lib/api'
+import { ApiError, actualizarUnidad, crearUnidad, getUnidades, type UnidadApi } from '../lib/api'
 import { useDemo } from '../lib/demo'
+import { useAuthStore } from '../store/useAuthStore'
 import { badge, card, estadoUnidadColors, FD, fmt, h2Titulo, subTitulo, tdCell, theadRow } from '../lib/estilos'
 import { useTabla } from '../lib/useTabla'
 import type { EstadoUnidad, TipoUnidad } from '../lib/types'
@@ -52,25 +53,54 @@ const obtenerColorSemaforo = (fechaStr?: string | null): { bg: string; fg: strin
 }
 
 export default function Catalogo() {
-  const { sesion, unidades, recargarUnidades, toast } = useDemo()
+  const { sesion, unidades: unidadesDemo, recargarUnidades, toast } = useDemo()
+  const { usuario, tieneRol } = useAuthStore()
   const navigate = useNavigate()
 
+  const [unidadesLocales, setUnidadesLocales] = useState<UnidadApi[]>([])
+  const [cargando, setCargando] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('Todos')
   const [filtroTipo, setFiltroTipo]     = useState<FiltroTipo>('Todos')
   const [alta, setAlta]   = useState<Alta | null>(null)
   const [editar, setEditar] = useState<{ unidad: UnidadApi; operacion: string; estado: EstadoUnidad; valor: string; vencimiento_documentacion: string; vin: string; numero_economico: string; marca: string; modelo: string; placas: string } | null>(null)
   const [error, setError] = useState('')
   
-  const esAdmin = sesion?.roles?.includes('admin')
+  const esAdmin = tieneRol(['admin']) || sesion?.roles?.includes('admin') || usuario?.rol === 'admin'
+
+  // Lista unificada: prioriza la respuesta directa de la API, con fallback al contexto de demo
+  const listaUnidades = useMemo(() => {
+    if (unidadesLocales.length > 0) return unidadesLocales
+    if (unidadesDemo.length > 0) return unidadesDemo
+    return []
+  }, [unidadesLocales, unidadesDemo])
+
+  const cargarUnidades = useCallback(async () => {
+    try {
+      setCargando(true)
+      const data = await getUnidades()
+      if (Array.isArray(data)) {
+        setUnidadesLocales(data)
+      }
+      void recargarUnidades()
+    } catch (err) {
+      console.warn('Error cargando unidades en catálogo:', err)
+    } finally {
+      setCargando(false)
+    }
+  }, [recargarUnidades])
+
+  useEffect(() => {
+    void cargarUnidades()
+  }, [cargarUnidades])
 
   const filtered = useMemo(
     () =>
-      unidades.filter(
+      listaUnidades.filter(
         (t) =>
           (filtroEstado === 'Todos' || t.estado === filtroEstado) &&
           (filtroTipo   === 'Todos' || t.tipo   === filtroTipo),
       ),
-    [unidades, filtroEstado, filtroTipo],
+    [listaUnidades, filtroEstado, filtroTipo],
   )
 
   const ctrl = useTabla(
@@ -101,7 +131,7 @@ export default function Catalogo() {
         modelo: alta.modelo === '' ? null : alta.modelo,
         placas: alta.placas === '' ? null : alta.placas,
       })
-      await recargarUnidades()
+      await cargarUnidades()
       toast(`${alta.id_unidad.trim()} dada de alta en la flota`)
       setAlta(null)
     } catch (e) {
@@ -130,7 +160,7 @@ export default function Catalogo() {
 
       if (Object.keys(cambio).length > 0) {
         await actualizarUnidad(editar.unidad.id, cambio)
-        await recargarUnidades()
+        await cargarUnidades()
         toast(`${editar.unidad.id_unidad} actualizada`)
       }
       setEditar(null)
@@ -199,7 +229,7 @@ export default function Catalogo() {
             🚚 Flota de Unidades Activas y en Taller
           </span>
           <span style={{ fontSize: 12, background: 'rgba(242,98,15,0.1)', color: '#F2620F', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
-            {unidades.length} unidades
+            {cargando ? 'Sincronizando...' : `${listaUnidades.length} unidades`}
           </span>
         </div>
 
@@ -266,7 +296,7 @@ export default function Catalogo() {
                   onClick={() => {
                     import('../lib/csv').then(({ descargarCSV }) => {
                       const headers = ['ID Unidad', 'VIN', 'Tipo', 'Vehículo', 'Placas', 'Estado', 'Fecha de Alta', 'Valor de Referencia (MXN)', 'Costo Acumulado (MXN)']
-                      const rows = unidades.map(u => [
+                      const rows = listaUnidades.map(u => [
                         String(u.id_unidad),
                         String(u.vin || '-'),
                         String(u.tipo === 'Servicio' ? 'UTILITARIO' : u.tipo),
@@ -310,33 +340,46 @@ export default function Catalogo() {
                 const c = estadoUnidadColors[t.estado] ?? estadoUnidadColors.Activo
                 const semaforo = obtenerColorSemaforo(t.vencimiento_documentacion)
                 return (
-                  <tr key={t.id} className="hv-fila">
-                    <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 17, color: '#16191E' }}>
-                      {t.id_unidad}
-                      <div style={{ fontSize: 12.5, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2 }}>{t.operacion}</div>
+                  <tr key={t.id_unidad} style={{ borderBottom: '1px solid #EFEBE1' }}>
+                    <td style={{ ...tdCell, fontWeight: 700, color: '#16191E' }}>
+                      <span style={{ fontFamily: FD, fontSize: 16 }}>{t.id_unidad}</span>
                     </td>
-                    <td style={tdCell}>
-                      <div style={{ fontWeight: 500 }}>{t.vin || '-'}</div>
+                    <td style={{ ...tdCell, color: '#6F6A60', fontFamily: 'monospace', fontSize: 12 }}>
+                      {t.vin || '—'}
                     </td>
-                    <td style={tdCell}>{t.tipo === 'Servicio' ? 'UTILITARIO' : t.tipo}</td>
-                    <td style={tdCell}>
-                      <div style={{ fontWeight: 500 }}>{t.marca || '-'}</div>
-                      <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{t.modelo || '-'}</div>
+                    <td style={{ ...tdCell, color: '#4A4438' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '2px 7px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: t.tipo === 'Caja' || t.tipo === 'Thermo' ? 'rgba(197,160,89,0.15)' : 'rgba(242,98,15,0.1)',
+                        color: t.tipo === 'Caja' || t.tipo === 'Thermo' ? '#8A6D1A' : '#C44B05'
+                      }}>
+                        {t.tipo === 'Servicio' ? 'UTILITARIO' : t.tipo}
+                      </span>
                     </td>
-                    <td style={tdCell}>{t.placas || '-'}</td>
+                    <td style={{ ...tdCell, color: '#16191E' }}>
+                      {t.marca ? `${t.marca} ${t.modelo || ''}` : '—'}
+                      {t.numero_economico && <span style={{ fontSize: 11, color: '#7C7567', marginLeft: 4 }}>({t.numero_economico})</span>}
+                    </td>
+                    <td style={{ ...tdCell, color: '#4A4438' }}>{t.placas || '—'}</td>
                     <td style={tdCell}>
-                      <span style={badge(c[0], c[1], c[2])}>{t.estado}</span>
+                      <span style={{ ...badge(c[0], c[1], c[2]), fontWeight: 700 }}>{t.estado}</span>
                     </td>
                     <td style={tdCell}>
                       {semaforo ? (
-                        <span style={badge(semaforo.bg, semaforo.fg)} title={t.vencimiento_documentacion ?? ''}>
-                          🚦 {semaforo.label}
+                        <span style={{ ...badge(semaforo.bg, semaforo.fg), fontWeight: 700, fontSize: 11 }}>
+                          {semaforo.label}
                         </span>
                       ) : (
-                        <span style={{ color: '#8A8374', fontSize: 13 }}>—</span>
+                        <span style={{ color: '#A09889', fontSize: 12 }}>—</span>
                       )}
                     </td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ ...tdCell, textAlign: 'right', fontWeight: 600, color: '#16191E' }}>
                       {t.costo_real_acumulado ? fmt(t.costo_real_acumulado) : '—'}
                     </td>
                     <td style={{ ...tdCell, textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -366,7 +409,7 @@ export default function Catalogo() {
           {ctrl.total === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 30, color: '#6F6A60', fontSize: 14 }}>
               <Camion stroke="#16191E" strokeWidth={3} style={{ width: 120, opacity: 0.35 }} />
-              Aún no hay unidades en esta vista.
+              {cargando ? 'Sincronizando flota de unidades...' : 'Aún no hay unidades en esta vista.'}
             </div>
           )}
 

@@ -13,8 +13,8 @@ import type { EstadoUnidad, TipoUnidad } from '../lib/types'
 type FiltroEstado = 'Todos' | EstadoUnidad
 type FiltroTipo   = 'Todos' | TipoUnidad
 
-const campo: CSSProperties = { padding: 12, border: '1px solid #D8D2C4', borderRadius: 9, fontSize: 15, background: '#FAF7F0', width: '100%' }
-const etiqueta: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 600 }
+const campo: CSSProperties = { padding: 12, border: '1px solid rgba(243,239,231,0.18)', borderRadius: 9, fontSize: 14, background: '#1C2128', color: '#FFFFFF', width: '100%', outline: 'none' }
+const etiqueta: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 600, color: '#D8D2C4' }
 
 interface Alta {
   id_unidad: string
@@ -44,11 +44,11 @@ const obtenerColorSemaforo = (fechaStr?: string | null): { bg: string; fg: strin
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
   if (diffDays <= 14) {
-    return { bg: '#FBEBE8', fg: '#C53030', label: `Rojo (${diffDays} días)` }
+    return { bg: 'rgba(197, 48, 48, 0.25)', fg: '#FEB2B2', label: `Rojo (${diffDays} días)` }
   } else if (diffDays <= 28) {
-    return { bg: '#FBF3D9', fg: '#8A6D1A', label: `Amarillo (${diffDays} días)` }
+    return { bg: 'rgba(224, 195, 106, 0.25)', fg: '#E0C36A', label: `Amarillo (${diffDays} días)` }
   } else {
-    return { bg: '#E5F3E9', fg: '#2C7A44', label: `Verde (${diffDays} días)` }
+    return { bg: 'rgba(63, 166, 92, 0.25)', fg: '#68D391', label: `Verde (${diffDays} días)` }
   }
 }
 
@@ -172,36 +172,34 @@ export default function Catalogo() {
   const modal = (titulo: string, contenido: ReactNode, onGuardar: () => void, onCerrar: () => void) => (
     <div
       onClick={onCerrar}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(20,24,29,0.55)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,12,15,0.75)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        style={{ background: '#fff', borderRadius: 14, maxWidth: 480, width: '100%', padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', borderTop: '5px solid #F2620F', animation: 'fadeUp 0.2s ease' }}
+        style={{ background: '#14181D', borderRadius: 14, maxWidth: 480, width: '100%', padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(243,239,231,0.15)', borderTop: '5px solid #F2620F', animation: 'fadeUp 0.2s ease' }}
       >
-        <h3 style={{ fontFamily: FD, fontWeight: 700, fontSize: 22, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#16191E', margin: '0 0 14px' }}>
+        <h3 style={{ fontFamily: FD, fontWeight: 700, fontSize: 22, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#FFFFFF', margin: '0 0 14px' }}>
           {titulo}
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{contenido}</div>
         {error && (
-          <div role="alert" style={{ marginTop: 12, background: '#FBEBE8', border: '1px solid #E8A99D', color: '#9B2C2C', borderRadius: 9, padding: '12px 14px', fontSize: 14 }}>
+          <div role="alert" style={{ marginTop: 12, background: 'rgba(197, 48, 48, 0.2)', border: '1px solid rgba(197, 48, 48, 0.4)', color: '#FEB2B2', borderRadius: 9, padding: '12px 14px', fontSize: 13 }}>
             {error}
           </div>
         )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
           <button
             onClick={onCerrar}
-            className="hv-crema"
-            style={{ padding: '10px 18px', background: '#fff', border: '1px solid #D8D2C4', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#16191E', cursor: 'pointer' }}
+            style={{ padding: '10px 18px', background: 'rgba(243,239,231,0.08)', border: '1px solid rgba(243,239,231,0.2)', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#F3EFE7', cursor: 'pointer' }}
           >
             Cancelar
           </button>
           <button
             onClick={onGuardar}
-            className="hv-naranja"
-            style={{ padding: '10px 20px', background: '#F2620F', border: 'none', borderRadius: 8, fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#fff', cursor: 'pointer' }}
+            style={{ padding: '10px 20px', background: '#F2620F', border: 'none', borderRadius: 8, fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#16191E', cursor: 'pointer' }}
           >
             Guardar
           </button>
@@ -215,20 +213,20 @@ export default function Catalogo() {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', animation: 'fadeUp 0.35s ease' }}>
         <div>
           <Kicker texto="Catálogos" />
-          <h2 style={h2Titulo}>Gestión de Catálogos</h2>
-          <p style={subTitulo}>
+          <h2 style={{ ...h2Titulo, color: '#FFFFFF' }}>Gestión de Catálogos</h2>
+          <p style={{ ...subTitulo, color: '#B8B2A6' }}>
             Administración centralizada de la flota de unidades y existencias límites del almacén general.
           </p>
         </div>
       </div>
 
       {/* Banner de Navegación Unificado */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #D8D2C4', paddingBottom: 12, marginTop: 12, marginBottom: 18, animation: 'fadeUp 0.38s ease', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(243,239,231,0.12)', paddingBottom: 12, marginTop: 12, marginBottom: 18, animation: 'fadeUp 0.38s ease', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#F2620F' }}>
             🚚 Flota de Unidades Activas y en Taller
           </span>
-          <span style={{ fontSize: 12, background: 'rgba(242,98,15,0.1)', color: '#F2620F', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+          <span style={{ fontSize: 12, background: 'rgba(242,98,15,0.2)', color: '#F2620F', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
             {cargando ? 'Sincronizando...' : `${listaUnidades.length} unidades`}
           </span>
         </div>
@@ -236,15 +234,15 @@ export default function Catalogo() {
         <button
           type="button"
           onClick={() => navigate('/compras/inventario')}
-          className="hv-borde-ink"
+          className="hover:border-white transition-all cursor-pointer"
           style={{
             padding: '8px 14px',
-            background: '#FAF7F0',
-            border: '1px solid #D8D2C4',
+            background: 'rgba(243,239,231,0.08)',
+            border: '1px solid rgba(243,239,231,0.2)',
             borderRadius: 8,
             fontSize: 13,
             fontWeight: 700,
-            color: '#16191E',
+            color: '#F3EFE7',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -256,7 +254,7 @@ export default function Catalogo() {
         </button>
       </div>
 
-      <div data-tour="catalogo" style={{ ...card, padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.4s ease' }}>
+      <div data-tour="catalogo" style={{ ...card, background: '#14181D', border: '1px solid rgba(243,239,231,0.12)', padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.4s ease' }}>
           <TablaToolbar
             ctrl={ctrl}
             filtros={ESTADOS.map((f) => ({ value: f }))}
@@ -268,16 +266,16 @@ export default function Catalogo() {
                   <button
                     key={t}
                     onClick={() => { setFiltroTipo(filtroTipo === t ? 'Todos' : t); ctrl.resetPage() }}
-                    className="hv-borde-ink"
                     style={{
                       padding: '7px 12px',
                       borderRadius: 8,
                       fontSize: 12.5,
                       fontWeight: 700,
                       cursor: 'pointer',
-                      background: filtroTipo === t ? '#F2620F' : '#fff',
-                      color: filtroTipo === t ? '#fff' : '#4A4438',
-                      border: filtroTipo === t ? '1px solid #F2620F' : '1px solid #D8D2C4',
+                      background: filtroTipo === t ? '#F2620F' : 'rgba(243,239,231,0.06)',
+                      color: filtroTipo === t ? '#16191E' : '#D8D2C4',
+                      border: filtroTipo === t ? '1px solid #F2620F' : '1px solid rgba(243,239,231,0.15)',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     {t === 'Servicio' ? 'Servicio' : t}
@@ -286,8 +284,7 @@ export default function Catalogo() {
                 {esAdmin && (
                   <button
                     onClick={() => { setError(''); setAlta({ ...altaVacia }) }}
-                    className="hv-naranja"
-                    style={{ padding: '9px 18px', background: '#F2620F', color: '#fff', border: 'none', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 15, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}
+                    style={{ padding: '9px 18px', background: '#F2620F', color: '#16191E', border: 'none', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 15, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: '0 4px 12px rgba(242,98,15,0.25)' }}
                   >
                     + Agregar unidad
                   </button>
@@ -312,8 +309,19 @@ export default function Catalogo() {
                       toast(`Reporte ${filename} descargado exitosamente.`)
                     })
                   }}
-                  className="hv-borde-ink"
-                  style={{ padding: '9px 14px', background: '#fff', color: '#4A4438', border: '1px solid #D8D2C4', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', cursor: 'pointer' }}
+                  style={{
+                    padding: '9px 14px',
+                    background: 'rgba(243,239,231,0.06)',
+                    color: '#F3EFE7',
+                    border: '1px solid rgba(243,239,231,0.15)',
+                    borderRadius: 8,
+                    fontFamily: FD,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
                 >
                   ⬇️ Exportar CSV
                 </button>
@@ -323,16 +331,16 @@ export default function Catalogo() {
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 560 }}>
             <thead>
-              <tr style={theadRow}>
-                <SortTh col="id_unidad" label="ID Unidad"               sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="vin"       label=" VIN"                    sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="tipo"      label="Tipo"                    sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="marca"     label="Vehículo"                sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="placas"    label="Placas"                  sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="estado"    label="Estado"                  sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="vencimiento" label="Vigencia Trámites"     sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                <SortTh col="costo"     label="Costo total acumulado"   sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
-                <th style={{ padding: '12px 10px', borderBottom: '2px solid #16191E' }} />
+              <tr style={{ ...theadRow, color: '#C5A059', borderBottom: '2px solid rgba(197, 160, 89, 0.4)' }}>
+                <SortTh col="id_unidad" label="ID Unidad"               sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="vin"       label=" VIN"                    sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="tipo"      label="Tipo"                    sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="marca"     label="Vehículo"                sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="placas"    label="Placas"                  sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="estado"    label="Estado"                  sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="vencimiento" label="Vigencia Trámites"     sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ color: '#C5A059' }} />
+                <SortTh col="costo"     label="Costo total acumulado"   sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right', color: '#C5A059' }} />
+                <th style={{ padding: '12px 10px', borderBottom: '2px solid rgba(197, 160, 89, 0.4)' }} />
               </tr>
             </thead>
             <tbody>
@@ -340,14 +348,14 @@ export default function Catalogo() {
                 const c = estadoUnidadColors[t.estado] ?? estadoUnidadColors.Activo
                 const semaforo = obtenerColorSemaforo(t.vencimiento_documentacion)
                 return (
-                  <tr key={t.id_unidad} style={{ borderBottom: '1px solid #EFEBE1' }}>
-                    <td style={{ ...tdCell, fontWeight: 700, color: '#16191E' }}>
-                      <span style={{ fontFamily: FD, fontSize: 16 }}>{t.id_unidad}</span>
+                  <tr key={t.id_unidad} style={{ borderBottom: '1px solid rgba(243,239,231,0.08)' }}>
+                    <td style={{ ...tdCell, fontWeight: 700, color: '#FFFFFF' }}>
+                      <span style={{ fontFamily: FD, fontSize: 16, color: '#FFFFFF' }}>{t.id_unidad}</span>
                     </td>
-                    <td style={{ ...tdCell, color: '#6F6A60', fontFamily: 'monospace', fontSize: 12 }}>
+                    <td style={{ ...tdCell, color: '#B8B2A6', fontFamily: 'monospace', fontSize: 12 }}>
                       {t.vin || '—'}
                     </td>
-                    <td style={{ ...tdCell, color: '#4A4438' }}>
+                    <td style={{ ...tdCell, color: '#E0DDD5' }}>
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -356,17 +364,17 @@ export default function Catalogo() {
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 700,
-                        background: t.tipo === 'Caja' || t.tipo === 'Thermo' ? 'rgba(197,160,89,0.15)' : 'rgba(242,98,15,0.1)',
-                        color: t.tipo === 'Caja' || t.tipo === 'Thermo' ? '#8A6D1A' : '#C44B05'
+                        background: t.tipo === 'Caja' || t.tipo === 'Thermo' ? 'rgba(197,160,89,0.2)' : 'rgba(242,98,15,0.2)',
+                        color: t.tipo === 'Caja' || t.tipo === 'Thermo' ? '#E0C36A' : '#F2620F'
                       }}>
                         {t.tipo === 'Servicio' ? 'UTILITARIO' : t.tipo}
                       </span>
                     </td>
-                    <td style={{ ...tdCell, color: '#16191E' }}>
-                      {t.marca ? `${t.marca} ${t.modelo || ''}` : '—'}
-                      {t.numero_economico && <span style={{ fontSize: 11, color: '#7C7567', marginLeft: 4 }}>({t.numero_economico})</span>}
+                    <td style={{ ...tdCell, color: '#FFFFFF' }}>
+                      <span style={{ color: '#FFFFFF', fontWeight: 500 }}>{t.marca ? `${t.marca} ${t.modelo || ''}` : '—'}</span>
+                      {t.numero_economico && <span style={{ fontSize: 11, color: '#C5A059', marginLeft: 4 }}>({t.numero_economico})</span>}
                     </td>
-                    <td style={{ ...tdCell, color: '#4A4438' }}>{t.placas || '—'}</td>
+                    <td style={{ ...tdCell, color: '#E0DDD5' }}>{t.placas || '—'}</td>
                     <td style={tdCell}>
                       <span style={{ ...badge(c[0], c[1], c[2]), fontWeight: 700 }}>{t.estado}</span>
                     </td>
@@ -376,26 +384,26 @@ export default function Catalogo() {
                           {semaforo.label}
                         </span>
                       ) : (
-                        <span style={{ color: '#A09889', fontSize: 12 }}>—</span>
+                        <span style={{ color: '#7C7567', fontSize: 12 }}>—</span>
                       )}
                     </td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontWeight: 600, color: '#16191E' }}>
+                    <td style={{ ...tdCell, textAlign: 'right', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>
                       {t.costo_real_acumulado ? fmt(t.costo_real_acumulado) : '—'}
                     </td>
                     <td style={{ ...tdCell, textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {esAdmin && (
                         <button
                           onClick={() => { setError(''); setEditar({ unidad: t, operacion: t.operacion ?? '', estado: t.estado, valor: t.valor_referencia === null ? '' : String(t.valor_referencia), vencimiento_documentacion: t.vencimiento_documentacion ?? '', vin: t.vin ?? '', numero_economico: t.numero_economico ?? '', marca: t.marca ?? '', modelo: t.modelo ?? '', placas: t.placas ?? '' }) }}
-                          className="hv-inkfill"
-                          style={{ padding: '7px 12px', background: '#F3EFE7', border: '1px solid #D8D2C4', borderRadius: 7, fontSize: 12.5, fontWeight: 700, color: '#16191E', cursor: 'pointer', marginRight: 8 }}
+                          className="hover:border-white transition-all cursor-pointer"
+                          style={{ padding: '7px 12px', background: 'rgba(243,239,231,0.08)', border: '1px solid rgba(243,239,231,0.2)', borderRadius: 7, fontSize: 12.5, fontWeight: 700, color: '#F3EFE7', cursor: 'pointer', marginRight: 8 }}
                         >
                           Editar
                         </button>
                       )}
                       <button
                         onClick={() => navigate('/ficha/' + t.id_unidad)}
-                        className="hv-inkfill"
-                        style={{ padding: '7px 12px', background: '#F3EFE7', border: '1px solid #D8D2C4', borderRadius: 7, fontSize: 12.5, fontWeight: 700, color: '#16191E', cursor: 'pointer' }}
+                        className="hover:border-[#C5A059] transition-all cursor-pointer"
+                        style={{ padding: '7px 12px', background: 'rgba(197,160,89,0.15)', border: '1px solid rgba(197,160,89,0.4)', borderRadius: 7, fontSize: 12.5, fontWeight: 700, color: '#E0C36A', cursor: 'pointer' }}
                       >
                         Ver ficha
                       </button>
@@ -407,8 +415,8 @@ export default function Catalogo() {
           </table>
 
           {ctrl.total === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 30, color: '#6F6A60', fontSize: 14 }}>
-              <Camion stroke="#16191E" strokeWidth={3} style={{ width: 120, opacity: 0.35 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 30, color: '#B8B2A6', fontSize: 14 }}>
+              <Camion stroke="#F2620F" strokeWidth={2.5} style={{ width: 120, opacity: 0.6 }} />
               {cargando ? 'Sincronizando flota de unidades...' : 'Aún no hay unidades en esta vista.'}
             </div>
           )}

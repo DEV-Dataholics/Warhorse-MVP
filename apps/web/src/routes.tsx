@@ -23,6 +23,7 @@ import ComprasCarrito from './pages/compras/ComprasCarrito'
 import ComprasCola from './pages/compras/ComprasCola'
 import ComprasYonke from './pages/compras/ComprasYonke'
 import { ComprasInventario } from './pages/compras/ComprasInventario'
+import { ComprasProveedores } from './pages/compras/ComprasProveedores'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminReportes from './pages/admin/AdminReportes'
 
@@ -189,6 +190,14 @@ export function AppRoutes() {
           element={
             <RutaProtegida rolesPermitidos={['compras', 'admin']}>
               <ComprasInventario />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/compras/proveedores"
+          element={
+            <RutaProtegida rolesPermitidos={['compras', 'admin']}>
+              <ComprasProveedores />
             </RutaProtegida>
           }
         />

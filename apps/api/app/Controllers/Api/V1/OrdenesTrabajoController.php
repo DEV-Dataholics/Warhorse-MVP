@@ -257,7 +257,9 @@ final class OrdenesTrabajoController extends BaseController
             'data' => array_map(static fn (array $f): array => [
                 'id'     => (int) $f['id'],
                 'nombre' => (string) $f['nombre'],
+                'tipo'   => (string) ($f['tipo'] ?? 'Tracto'),
                 'rol'    => (string) $f['rol'],
+                'activo' => isset($f['activo']) ? (bool) $f['activo'] : true,
             ], $filas),
         ]);
     }
@@ -267,7 +269,7 @@ final class OrdenesTrabajoController extends BaseController
         $request = $this->request;
         $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
 
-                if (! $this->validateData($datos, [
+        if (! $this->validateData($datos, [
             'nombre' => 'required|min_length[3]|max_length[120]',
             'tipo'   => 'required|in_list[Tracto,Caja]',
             'rol'    => 'required|in_list[Mecánico A,Mecánico B,Auxiliar,Termoquineros]',
@@ -279,12 +281,105 @@ final class OrdenesTrabajoController extends BaseController
         $db = \Config\Database::connect();
         $db->table('responsables_taller')->insert([
             'nombre' => trim((string) $datos['nombre']),
+            'tipo'   => $datos['tipo'],
             'rol'    => $datos['rol'],
+            'activo' => 1,
         ]);
 
         return $this->response->setStatusCode(201)->setJSON([
             'id' => $db->insertID(),
             'message' => 'Responsable creado exitosamente.',
+        ]);
+    }
+
+    public function actualizarResponsable(int $id): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
+
+        $db = \Config\Database::connect();
+        $resp = $db->table('responsables_taller')->where('id', $id)->get()->getRowArray();
+        if ($resp === null) {
+            return RespuestasApi::error(404, 'not_found', 'Responsable de taller no encontrado.');
+        }
+
+        $camposActualizar = [];
+        if (isset($datos['nombre']) && is_string($datos['nombre']) && trim($datos['nombre']) !== '') {
+            $camposActualizar['nombre'] = trim($datos['nombre']);
+        }
+        if (isset($datos['tipo']) && in_array($datos['tipo'], ['Tracto', 'Caja'], true)) {
+            $camposActualizar['tipo'] = $datos['tipo'];
+        }
+        if (isset($datos['rol']) && in_array($datos['rol'], ['Mecánico A', 'Mecánico B', 'Auxiliar', 'Termoquineros'], true)) {
+            $camposActualizar['rol'] = $datos['rol'];
+        }
+        if (isset($datos['activo'])) {
+            $camposActualizar['activo'] = $datos['activo'] ? 1 : 0;
+        }
+
+        if ($camposActualizar !== []) {
+            $db->table('responsables_taller')->where('id', $id)->update($camposActualizar);
+        }
+
+        return $this->response->setJSON([
+            'message' => 'Responsable actualizado exitosamente.',
+            'data'    => array_merge($resp, $camposActualizar),
+        ]);
+    }
+
+    public function cancelarOT(int $id): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
+        $motivo  = trim((string) ($datos['motivo'] ?? 'Cancelada por el jefe de taller'));
+
+        $db = \Config\Database::connect();
+        $ot = $db->table('ordenes_trabajo')->where('id', $id)->get()->getRowArray();
+        if ($ot === null) {
+            return RespuestasApi::error(404, 'not_found', 'Orden de trabajo no encontrada.');
+        }
+
+        $diagnosticoActual = (string) $ot['diagnostico'];
+        $nuevoDiagnostico = "[CANCELADA: " . $motivo . "] " . $diagnosticoActual;
+
+        $db->table('ordenes_trabajo')->where('id', $id)->update([
+            'estado'      => 'Cancelada',
+            'diagnostico' => $nuevoDiagnostico,
+        ]);
+
+        return $this->response->setJSON([
+            'message' => 'Orden de trabajo cancelada exitosamente.',
+            'id'      => $id,
+            'estado'  => 'Cancelada',
+        ]);
+    }
+
+    public function actualizarOT(int $id): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
+
+        $db = \Config\Database::connect();
+        $ot = $db->table('ordenes_trabajo')->where('id', $id)->get()->getRowArray();
+        if ($ot === null) {
+            return RespuestasApi::error(404, 'not_found', 'Orden de trabajo no encontrada.');
+        }
+
+        $campos = [];
+        if (isset($datos['diagnostico']) && is_string($datos['diagnostico']) && trim($datos['diagnostico']) !== '') {
+            $campos['diagnostico'] = trim($datos['diagnostico']);
+        }
+        if (isset($datos['responsable_id']) && is_numeric($datos['responsable_id'])) {
+            $campos['responsable_id'] = (int) $datos['responsable_id'];
+        }
+
+        if ($campos !== []) {
+            $db->table('ordenes_trabajo')->where('id', $id)->update($campos);
+        }
+
+        return $this->response->setJSON([
+            'message' => 'Orden de trabajo actualizada exitosamente.',
+            'id'      => $id,
         ]);
     }
 }

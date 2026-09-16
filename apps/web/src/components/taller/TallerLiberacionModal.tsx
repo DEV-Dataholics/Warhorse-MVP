@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { liberarUnidad } from '../../lib/api'
 import { useUiStore } from '../../store/useUiStore'
+import { marcarInspeccionesUnidadResueltas } from '../../lib/inspeccionStorage'
 
 interface Props {
   registroTaller: {
@@ -77,6 +78,12 @@ export const TallerLiberacionModal: React.FC<Props> = ({
           ? `La unidad ${registroTaller.id_unidad} regresó a estatus Activo al 100%.`
           : `La unidad ${registroTaller.id_unidad} salió con Warning. Sus pendientes pueden retomarse bajo la misma OT.`,
       })
+
+      // Resolver y cerrar trazabilidad de inspecciones de patio de esta unidad
+      await marcarInspeccionesUnidadResueltas(
+        registroTaller.id_unidad,
+        registroTaller.folio_ot || `OT-${registroTaller.id}`
+      ).catch(() => {})
 
       alExito()
       alCerrar()

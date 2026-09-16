@@ -17,11 +17,15 @@ import {
   X,
   ChevronRight,
   ClipboardList,
-  ShoppingCart
+  ShoppingCart,
+  Ban,
+  Edit3
 } from 'lucide-react'
 import { 
   getOrdenesTrabajo, 
   getTaller, 
+  cancelarOrdenTrabajo,
+  actualizarOrdenTrabajo,
   type OrdenTrabajoApi, 
   type RegistroTallerApi 
 } from '../../lib/api'
@@ -43,8 +47,18 @@ export const TallerOrdenes: React.FC = () => {
   const [ordenes, setOrdenes] = useState<OrdenTrabajoApi[]>([])
   const [registrosTaller, setRegistrosTaller] = useState<RegistroTallerApi[]>([])
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState<'Todas' | 'Activa' | 'En Proceso' | 'Liberada' | 'Liberada Parcial'>('Todas')
+  const [filtroEstado, setFiltroEstado] = useState<'Todas' | 'Activa' | 'En Proceso' | 'Liberada' | 'Liberada Parcial' | 'Cancelada'>('Todas')
   const [cargando, setCargando] = useState(true)
+
+  // Modales de Cancelación y Edición de Diagnóstico
+  const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false)
+  const [otACancelar, setOtACancelar] = useState<DetalleOT | null>(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+
+  const [modalEditarDiagAbierto, setModalEditarDiagAbierto] = useState(false)
+  const [otAEditarDiag, setOtAEditarDiag] = useState<DetalleOT | null>(null)
+  const [nuevoDiagnostico, setNuevoDiagnostico] = useState('')
+  const [guardandoAccion, setGuardandoAccion] = useState(false)
 
   // Datos de Inspecciones con Warning/Fallas de Patio (IndexedDB)
   const [inspeccionesConFalla, setInspeccionesConFalla] = useState<OrdenInspeccionForm[]>([])
@@ -97,13 +111,15 @@ export const TallerOrdenes: React.FC = () => {
   // Consolidar OTs y registros de taller para la vista principal
   const ordenesConsolidadas: DetalleOT[] = ordenes.map((ot, idx) => {
     const regAsociado = registrosTaller.find(r => r.unidad_id === ot.unidad?.id)
-    const estadoCalculado = regAsociado?.tipo_liberacion === 'Parcial'
+    const estadoCalculado = ot.estado === 'Cancelada'
+      ? 'Cancelada'
+      : regAsociado?.tipo_liberacion === 'Parcial'
       ? 'Liberada Parcial'
       : regAsociado?.tipo_liberacion === 'Total'
       ? 'Liberada'
       : ot.estado === 'Activa' && regAsociado?.fecha_ingreso
       ? 'En Proceso'
-      : 'Activa'
+      : (ot.estado as DetalleOT['estado']) || 'Activa'
 
     return {
       id: ot.id,
@@ -128,6 +144,7 @@ export const TallerOrdenes: React.FC = () => {
   const totalEnProceso = ordenesConsolidadas.filter(o => o.estado === 'En Proceso').length
   const totalParciales = ordenesConsolidadas.filter(o => o.estado === 'Liberada Parcial').length
   const totalLiberadas = ordenesConsolidadas.filter(o => o.estado === 'Liberada').length
+  const totalCanceladas = ordenesConsolidadas.filter(o => o.estado === 'Cancelada').length
 
   // Métricas rápidas Alertas de Patio
   const totalAlertas = inspeccionesConFalla.length
@@ -219,6 +236,83 @@ export const TallerOrdenes: React.FC = () => {
         itemsDefectuosos: insp.items.filter(i => i.estado !== 'Bueno'),
       },
     })
+  }
+
+  const abrirCancelarOT = (ot: DetalleOT) => {
+    setOtACancelar(ot)
+    setMotivoCancelacion('')
+    setModalCancelarAbierto(true)
+  }
+
+  const confirmarCancelacion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!otACancelar || !motivoCancelacion.trim()) return
+
+    setGuardandoAccion(true)
+    try {
+      await cancelarOrdenTrabajo(otACancelar.id, motivoCancelacion.trim())
+      agregarToast({
+        tipo: 'warning',
+        titulo: 'Orden de Trabajo Cancelada',
+        mensaje: `La OT ${otACancelar.folio} fue cancelada: ${motivoCancelacion.trim()}`,
+      })
+      setModalCancelarAbierto(false)
+      setOtACancelar(null)
+      await cargarDatos()
+    } catch {
+      setOrdenes(prev => prev.map(o => o.id === otACancelar.id ? {
+        ...o,
+        estado: 'Cancelada',
+        diagnostico: `[CANCELADA: ${motivoCancelacion.trim()}] ${o.diagnostico}`
+      } : o))
+      setModalCancelarAbierto(false)
+      setOtACancelar(null)
+      agregarToast({
+        tipo: 'warning',
+        titulo: 'OT Cancelada (Local)',
+        mensaje: `La OT ${otACancelar.folio} se marcó como cancelada en memoria.`,
+      })
+    } finally {
+      setGuardandoAccion(false)
+    }
+  }
+
+  const abrirEditarDiagnostico = (ot: DetalleOT) => {
+    setOtAEditarDiag(ot)
+    setNuevoDiagnostico(ot.diagnostico)
+    setModalEditarDiagAbierto(true)
+  }
+
+  const confirmarEdicionDiagnostico = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!otAEditarDiag || !nuevoDiagnostico.trim()) return
+
+    setGuardandoAccion(true)
+    try {
+      await actualizarOrdenTrabajo(otAEditarDiag.id, { diagnostico: nuevoDiagnostico.trim() })
+      agregarToast({
+        tipo: 'success',
+        titulo: 'Diagnóstico Actualizado',
+        mensaje: `El diagnóstico de la OT ${otAEditarDiag.folio} fue actualizado.`,
+      })
+      setModalEditarDiagAbierto(false)
+      setOtAEditarDiag(null)
+      await cargarDatos()
+    } catch {
+      setOrdenes(prev => prev.map(o => o.id === otAEditarDiag.id ? {
+        ...o,
+        diagnostico: nuevoDiagnostico.trim()
+      } : o))
+      setModalEditarDiagAbierto(false)
+      setOtAEditarDiag(null)
+      agregarToast({
+        tipo: 'info',
+        titulo: 'Diagnóstico Actualizado (Local)',
+        mensaje: `Diagnóstico actualizado en memoria.`,
+      })
+    } finally {
+      setGuardandoAccion(false)
+    }
   }
 
   return (
@@ -335,7 +429,7 @@ export const TallerOrdenes: React.FC = () => {
       {pestañaActiva === 'ots' && (
         <div className="space-y-6 animate-fade-in">
           {/* Tarjetas de Métricas Rápidas */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div className="rounded-xl border border-[rgba(243,239,231,0.08)] bg-[#14181D]/80 p-4">
               <div className="flex items-center justify-between text-xs text-[#B8B2A6]">
                 <span>OTs Activas (Ingresos)</span>
@@ -379,6 +473,17 @@ export const TallerOrdenes: React.FC = () => {
               </div>
               <div className="text-[10px] text-[#B8B2A6] mt-0.5">Restauradas a servicio</div>
             </div>
+
+            <div className="rounded-xl border border-[rgba(243,239,231,0.08)] bg-[#14181D]/80 p-4">
+              <div className="flex items-center justify-between text-xs text-[#B8B2A6]">
+                <span>Canceladas</span>
+                <Ban className="h-4 w-4 text-red-400" />
+              </div>
+              <div className="mt-1 font-['Barlow_Condensed'] text-3xl font-black text-red-400 tabular-nums">
+                {totalCanceladas}
+              </div>
+              <div className="text-[10px] text-[#B8B2A6] mt-0.5">Descartadas con motivo</div>
+            </div>
           </div>
 
           {/* Barra de Filtros y Búsqueda */}
@@ -396,14 +501,14 @@ export const TallerOrdenes: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-                {(['Todas', 'Activa', 'En Proceso', 'Liberada Parcial', 'Liberada'] as const).map(estado => (
+                {(['Todas', 'Activa', 'En Proceso', 'Liberada Parcial', 'Liberada', 'Cancelada'] as const).map(estado => (
                   <button
                     key={estado}
                     type="button"
                     onClick={() => setFiltroEstado(estado)}
                     className={`rounded-lg px-3 py-1.5 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                       filtroEstado === estado
-                        ? 'bg-[#F2620F] text-[#16191E]'
+                        ? estado === 'Cancelada' ? 'bg-red-600 text-white' : 'bg-[#F2620F] text-[#16191E]'
                         : 'bg-[#1C1C1C] text-[#B8B2A6] hover:text-white'
                     }`}
                   >
@@ -432,43 +537,44 @@ export const TallerOrdenes: React.FC = () => {
                   {cargando ? (
                     <tr>
                       <td colSpan={8} className="py-8 text-center text-xs text-[#B8B2A6]">
-                        Cargando órdenes de trabajo desde el backend local...
+                        Cargando órdenes de trabajo de taller...
                       </td>
                     </tr>
                   ) : ordenesFiltradas.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-8 text-center text-xs text-[#B8B2A6]">
-                        No se encontraron órdenes de trabajo para los criterios seleccionados.
+                        No hay órdenes de trabajo que coincidan con los filtros.
                       </td>
                     </tr>
                   ) : (
                     ordenesFiltradas.map(ot => {
-                      const esParcial = ot.estado === 'Liberada Parcial'
-                      const esLiberada = ot.estado === 'Liberada'
+                      const estadoSalud = ot.estado === 'Cancelada'
+                        ? 'Descartada'
+                        : ot.estado === 'Liberada'
+                        ? 'Operativo 100%'
+                        : ot.estado === 'Liberada Parcial'
+                        ? 'Alerta Amarilla'
+                        : 'Taller / Detenido'
 
-                      const estadoSalud = esLiberada
-                        ? 'Activo 100%'
-                        : esParcial
-                        ? 'Warning'
-                        : 'Reparación'
-
-                      const colorSalud = esLiberada
+                      const colorSalud = ot.estado === 'Cancelada'
+                        ? 'bg-zinc-800 text-zinc-400'
+                        : ot.estado === 'Liberada'
                         ? 'bg-[#3FA65C]/20 text-[#3FA65C]'
-                        : esParcial
+                        : ot.estado === 'Liberada Parcial'
                         ? 'bg-[#E0C36A]/20 text-[#E0C36A]'
                         : 'bg-[#F2620F]/20 text-[#F2620F]'
 
                       return (
-                        <tr key={ot.id} className="hover:bg-white/[0.02] transition-colors">
+                        <tr key={ot.id} className="hover:bg-[#14181D]/60 transition-colors">
                           <td className="px-4 py-3 font-mono font-bold text-[#F2620F]">
                             {ot.folio}
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`rounded px-2 py-0.5 font-['Barlow_Condensed'] text-[10px] font-bold uppercase ${
-                                ot.tipo === 'Correctivo'
-                                  ? 'bg-[#F2620F]/15 text-[#F2620F]'
-                                  : 'bg-[#3FA65C]/15 text-[#3FA65C]'
+                              className={`rounded px-2 py-0.5 font-['Barlow_Condensed'] text-[10px] font-bold ${
+                                ot.tipo === 'Preventivo'
+                                  ? 'bg-[#3FA65C]/20 text-[#3FA65C]'
+                                  : 'bg-[#F2620F]/20 text-[#F2620F]'
                               }`}
                             >
                               {ot.tipo}
@@ -500,6 +606,8 @@ export const TallerOrdenes: React.FC = () => {
                                   ? 'bg-[#E0C36A]/20 text-[#E0C36A]'
                                   : ot.estado === 'En Proceso'
                                   ? 'bg-[#C5A059]/20 text-[#C5A059]'
+                                  : ot.estado === 'Cancelada'
+                                  ? 'bg-red-950/40 text-red-400 border border-red-900/40'
                                   : 'bg-[#1C1C1C] text-[#f3f4f6]'
                               }`}
                             >
@@ -527,15 +635,27 @@ export const TallerOrdenes: React.FC = () => {
                               </button>
 
                               {(ot.estado === 'Activa' || ot.estado === 'En Proceso') && (
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`/taller/refacciones?ot_id=${ot.id}`)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-[#F2620F]/40 bg-[#F2620F]/15 px-2 py-1 text-xs font-semibold text-[#F2620F] hover:bg-[#F2620F] hover:text-[#16191E] transition-all cursor-pointer"
-                                  title="Solicitar Refacciones para esta OT"
-                                >
-                                  <ShoppingCart className="h-3 w-3" />
-                                  <span>Piezas</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/taller/refacciones?ot_id=${ot.id}`)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[#F2620F]/40 bg-[#F2620F]/15 px-2 py-1 text-xs font-semibold text-[#F2620F] hover:bg-[#F2620F] hover:text-[#16191E] transition-all cursor-pointer"
+                                    title="Solicitar Refacciones para esta OT"
+                                  >
+                                    <ShoppingCart className="h-3 w-3" />
+                                    <span>Piezas</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirEditarDiagnostico(ot)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[rgba(243,239,231,0.15)] bg-[#14181D] px-2 py-1 text-xs font-semibold text-[#B8B2A6] hover:text-white hover:border-white transition-all cursor-pointer"
+                                    title="Editar Diagnóstico"
+                                  >
+                                    <Edit3 className="h-3 w-3" />
+                                    <span>Editar</span>
+                                  </button>
+                                </>
                               )}
 
                               {ot.estado === 'Activa' && (
@@ -551,15 +671,27 @@ export const TallerOrdenes: React.FC = () => {
                               )}
 
                               {(ot.estado === 'Activa' || ot.estado === 'En Proceso') && (
-                                <button
-                                  type="button"
-                                  onClick={() => abrirLiberacion(ot)}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-[#3FA65C] px-2 py-1 text-xs font-semibold font-['Barlow_Condensed'] uppercase text-[#16191E] hover:bg-[#2e7d44] transition-all cursor-pointer"
-                                  title="Liberar Unidad"
-                                >
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  <span>Liberar</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirLiberacion(ot)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#3FA65C] px-2 py-1 text-xs font-semibold font-['Barlow_Condensed'] uppercase text-[#16191E] hover:bg-[#2e7d44] transition-all cursor-pointer"
+                                    title="Liberar Unidad"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span>Liberar</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirCancelarOT(ot)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-red-900/40 bg-red-950/20 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-200 transition-all cursor-pointer"
+                                    title="Cancelar Orden de Trabajo"
+                                  >
+                                    <Ban className="h-3 w-3" />
+                                    <span>Cancelar</span>
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -898,6 +1030,147 @@ export const TallerOrdenes: React.FC = () => {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Cancelación de Orden de Trabajo */}
+      {modalCancelarAbierto && otACancelar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl border border-red-900/50 bg-[#14181D] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[rgba(243,239,231,0.1)] bg-red-950/30 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600 text-white">
+                  <Ban className="h-5 w-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-['Barlow_Condensed'] text-xl font-bold uppercase tracking-wide text-white">
+                    Cancelar Orden de Trabajo
+                  </h3>
+                  <p className="text-xs text-red-200/70">
+                    {otACancelar.folio} · Unidad {otACancelar.unidad_id}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalCancelarAbierto(false)}
+                className="text-[#B8B2A6] hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={confirmarCancelacion} className="p-6 space-y-4">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">
+                <div className="font-bold flex items-center gap-1.5 mb-1">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <span>Acción de Auditoría Mecánica</span>
+                </div>
+                Esta acción descartará la orden activa preservando su trazabilidad histórica. Ingrese el motivo formal para el registro de auditoría.
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#B8B2A6]">
+                  Diagnóstico Original:
+                </label>
+                <div className="rounded-xl border border-[rgba(243,239,231,0.1)] bg-[#1C1C1C] p-2.5 text-xs text-[#f3f4f6]/80 italic">
+                  {otACancelar.diagnostico}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-white">
+                  Motivo de Cancelación / Descarte <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={motivoCancelacion}
+                  onChange={e => setMotivoCancelacion(e.target.value)}
+                  placeholder="Ej. Diagnóstico corregido; la falla correspondía a otro componente o la unidad fue reasignada."
+                  rows={3}
+                  className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] p-3 text-xs text-white focus:border-red-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[rgba(243,239,231,0.08)]">
+                <button
+                  type="button"
+                  onClick={() => setModalCancelarAbierto(false)}
+                  className="rounded-xl border border-[rgba(243,239,231,0.15)] px-4 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#B8B2A6] hover:text-white cursor-pointer"
+                >
+                  Regresar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAccion || !motivoCancelacion.trim()}
+                  className="rounded-xl bg-red-600 px-5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-white hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                >
+                  {guardandoAccion ? 'Cancelando...' : 'Confirmar Cancelación'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición de Diagnóstico */}
+      {modalEditarDiagAbierto && otAEditarDiag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl border border-[rgba(243,239,231,0.15)] bg-[#14181D] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[rgba(243,239,231,0.1)] bg-[#1C1C1C] px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C5A059] text-[#16191E]">
+                  <Edit3 className="h-5 w-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-['Barlow_Condensed'] text-xl font-bold uppercase tracking-wide text-white">
+                    Editar Diagnóstico Mecánico
+                  </h3>
+                  <p className="text-xs text-[#B8B2A6]">
+                    {otAEditarDiag.folio} · Unidad {otAEditarDiag.unidad_id}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalEditarDiagAbierto(false)}
+                className="text-[#B8B2A6] hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={confirmarEdicionDiagnostico} className="p-6 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-white">
+                  Descripción del Diagnóstico / Fallas Detectadas
+                </label>
+                <textarea
+                  value={nuevoDiagnostico}
+                  onChange={e => setNuevoDiagnostico(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] p-3 text-xs text-white focus:border-[#F2620F] focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[rgba(243,239,231,0.08)]">
+                <button
+                  type="button"
+                  onClick={() => setModalEditarDiagAbierto(false)}
+                  className="rounded-xl border border-[rgba(243,239,231,0.15)] px-4 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#B8B2A6] hover:text-white cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAccion || !nuevoDiagnostico.trim()}
+                  className="rounded-xl bg-[#C5A059] px-5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-[#16191E] hover:bg-[#B38F46] cursor-pointer disabled:opacity-50"
+                >
+                  {guardandoAccion ? 'Guardando...' : 'Guardar Diagnóstico'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

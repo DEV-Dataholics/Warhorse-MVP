@@ -174,6 +174,27 @@ export async function marcarInspeccionAtendida(
   await set(PREFIJO_HISTORIAL, actualizada)
 }
 
+/**
+ * Marca todas las inspecciones con anomalías pendientes de una unidad como resueltas tras ser liberada en Taller.
+ */
+export async function marcarInspeccionesUnidadResueltas(
+  unidadId: string,
+  folioOT: string
+): Promise<void> {
+  const lista: OrdenInspeccionForm[] = (await get(PREFIJO_HISTORIAL)) || []
+  const actualizada = lista.map(item => {
+    if (item.unidad_id.toLowerCase() === unidadId.toLowerCase() && !item.ot_generada) {
+      return {
+        ...item,
+        ot_generada: folioOT,
+        fecha_atencion_ot: new Date().toISOString(),
+      }
+    }
+    return item
+  })
+  await set(PREFIJO_HISTORIAL, actualizada)
+}
+
 
 /**
  * Deja el historial local en CERO absoluto para pruebas E2E desde el inicio.

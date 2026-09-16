@@ -22,7 +22,7 @@ export interface DetalleOT {
   id: number
   folio: string
   tipo: 'Correctivo' | 'Preventivo' | 'Mantenimiento'
-  estado: 'Activa' | 'En Proceso' | 'Liberada' | 'Liberada Parcial' | 'Cerrada'
+  estado: 'Activa' | 'En Proceso' | 'Liberada' | 'Liberada Parcial' | 'Cerrada' | 'Cancelada'
   unidad_id: string
   unidad_nombre?: string
   tipo_unidad?: string

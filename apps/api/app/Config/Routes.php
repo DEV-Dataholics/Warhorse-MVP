@@ -64,9 +64,12 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     // Ordenes de Trabajo / Reparaciones (WH-005)
     $routes->get('taller/reparaciones', 'OrdenesTrabajoController::listar', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'password-vigente']]);
     $routes->post('taller/reparaciones', 'OrdenesTrabajoController::crear', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
+    $routes->patch('taller/reparaciones/(:num)', 'OrdenesTrabajoController::actualizarOT/$1', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
+    $routes->patch('taller/reparaciones/(:num)/cancelar', 'OrdenesTrabajoController::cancelarOT/$1', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
     $routes->post('taller/reparaciones/(:num)/tomar-inventario', 'OrdenesTrabajoController::tomarInventario/$1', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
     $routes->get('taller/responsables', 'OrdenesTrabajoController::responsables', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'password-vigente']]);
     $routes->post('taller/responsables', 'OrdenesTrabajoController::crearResponsable', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
+    $routes->patch('taller/responsables/(:num)', 'OrdenesTrabajoController::actualizarResponsable/$1', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'throttle-mut', 'password-vigente']]);
 
     // Panel de Compras (RF-COM-01..04): la cola la ven compras y admin; el
     // ciclo lo avanza SOLO compras (doc 05 §6)
@@ -74,6 +77,7 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     $routes->get('compras/buscar', 'ComprasController::buscar', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
     $routes->get('compras/proveedores', 'ComprasController::proveedores', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
     $routes->post('compras/proveedores', 'ComprasController::crearProveedor', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
+    $routes->patch('compras/proveedores/(:num)', 'ComprasController::actualizarProveedor/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
     $routes->patch('compras/requisiciones/(:num)/estado', 'ComprasController::estado/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
     $routes->post('compras/requisiciones/(:num)/revertir', 'ComprasController::revertir/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
 

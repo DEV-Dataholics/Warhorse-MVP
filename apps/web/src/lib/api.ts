@@ -645,6 +645,7 @@ export interface ResponsableTaller {
   nombre: string
   tipo: 'Tracto' | 'Caja'
   rol: 'Mecánico A' | 'Mecánico B' | 'Auxiliar' | 'Termoquineros'
+  activo?: boolean
 }
 
 export interface OrdenTrabajoApi {
@@ -675,6 +676,16 @@ export function crearResponsableTaller(datos: { nombre: string; tipo: string; ro
   return pedir<{ id: number }>('/taller/responsables', { method: 'POST', body: JSON.stringify(datos) })
 }
 
+export function actualizarResponsableTaller(
+  id: number,
+  datos: { nombre?: string; tipo?: 'Tracto' | 'Caja'; rol?: string; activo?: boolean }
+): Promise<{ message: string; data?: ResponsableTaller }> {
+  return pedir<{ message: string; data?: ResponsableTaller }>(`/taller/responsables/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(datos),
+  })
+}
+
 export async function getOrdenesTrabajo(): Promise<OrdenTrabajoApi[]> {
   const r = await pedir<{ data: OrdenTrabajoApi[] }>('/taller/reparaciones')
   return r.data
@@ -693,6 +704,23 @@ export function crearOrdenTrabajo(datos: {
     categoria: datos.categoria || 'Correctivo',
   }
   return pedir<{ id: number; folio?: string }>('/taller/reparaciones', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function cancelarOrdenTrabajo(id: number, motivo: string): Promise<{ id: number; message: string; estado: string }> {
+  return pedir<{ id: number; message: string; estado: string }>(`/taller/reparaciones/${id}/cancelar`, {
+    method: 'PATCH',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function actualizarOrdenTrabajo(
+  id: number,
+  datos: { diagnostico?: string; responsable_id?: number }
+): Promise<{ id: number; message: string }> {
+  return pedir<{ id: number; message: string }>(`/taller/reparaciones/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(datos),
+  })
 }
 
 export interface CompraApi {
@@ -836,9 +864,10 @@ export interface ProveedorApi {
   activo: boolean
 }
 
-export async function getProveedores(): Promise<ProveedorApi[]> {
+export async function getProveedores(todos = false): Promise<ProveedorApi[]> {
   try {
-    const r = await pedir<{ data: ProveedorApi[] }>('/compras/proveedores')
+    const url = todos ? '/compras/proveedores?todos=1' : '/compras/proveedores'
+    const r = await pedir<{ data: ProveedorApi[] }>(url)
     return r.data
   } catch {
     return [
@@ -854,6 +883,16 @@ export async function getProveedores(): Promise<ProveedorApi[]> {
 export async function crearProveedor(datos: { nombre: string; rfc?: string }): Promise<ProveedorApi> {
   return pedir<ProveedorApi>('/compras/proveedores', {
     method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function actualizarProveedor(
+  id: number,
+  datos: { nombre?: string; rfc?: string; activo?: boolean }
+): Promise<{ id: number; message: string }> {
+  return pedir<{ id: number; message: string }>(`/compras/proveedores/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(datos),
   })
 }

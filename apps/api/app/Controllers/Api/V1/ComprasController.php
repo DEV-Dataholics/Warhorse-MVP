@@ -139,10 +139,14 @@ final class ComprasController extends BaseController
     public function proveedores(): ResponseInterface
     {
         $db = \Config\Database::connect();
-        $builder = $db->table('proveedores')->where('activo', 1)->orderBy('nombre', 'ASC');
+        $mostrarTodos = $this->request->getGet('todos') === '1';
+        $builder = $db->table('proveedores')->orderBy('nombre', 'ASC');
+        if (! $mostrarTodos) {
+            $builder->where('activo', 1);
+        }
         $proveedores = $builder->get()->getResultArray();
 
-        if (empty($proveedores)) {
+        if (empty($proveedores) && ! $mostrarTodos) {
             // Seed inicial estándar si está vacía
             $iniciales = [
                 ['nombre' => 'Refaccionaria Diésel del Norte', 'rfc' => 'RDN980512AB3', 'activo' => 1],
@@ -196,6 +200,36 @@ final class ComprasController extends BaseController
             'nombre' => trim((string) $datos['nombre']),
             'rfc'    => $datos['rfc'] ?? null,
             'message' => 'Proveedor registrado exitosamente.',
+        ]);
+    }
+
+    public function actualizarProveedor(int $id): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
+
+        $db = \Config\Database::connect();
+        $prov = $db->table('proveedores')->where('id', $id)->get()->getRowArray();
+        if ($prov === null) {
+            return RespuestasApi::error(404, 'not_found', 'Proveedor no encontrado.');
+        }
+
+        $campos = ['updated_at' => date('Y-m-d H:i:s')];
+        if (isset($datos['nombre']) && is_string($datos['nombre']) && trim($datos['nombre']) !== '') {
+            $campos['nombre'] = trim($datos['nombre']);
+        }
+        if (isset($datos['rfc'])) {
+            $campos['rfc'] = trim((string) $datos['rfc']) !== '' ? strtoupper(trim((string) $datos['rfc'])) : null;
+        }
+        if (isset($datos['activo'])) {
+            $campos['activo'] = $datos['activo'] ? 1 : 0;
+        }
+
+        $db->table('proveedores')->where('id', $id)->update($campos);
+
+        return $this->response->setJSON([
+            'message' => 'Proveedor actualizado exitosamente.',
+            'id'      => $id,
         ]);
     }
 }

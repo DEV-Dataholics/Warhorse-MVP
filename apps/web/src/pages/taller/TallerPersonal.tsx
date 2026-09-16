@@ -4,13 +4,17 @@ import {
   Wrench, 
   RotateCw, 
   CheckCircle2, 
+  XCircle,
   UserCheck, 
   QrCode, 
-  Search 
+  Search,
+  Edit2,
+  Power
 } from 'lucide-react'
 import { 
   getResponsablesTaller, 
   crearResponsableTaller, 
+  actualizarResponsableTaller,
   type ResponsableTaller 
 } from '../../lib/api'
 import { useUiStore } from '../../store/useUiStore'
@@ -23,9 +27,12 @@ export const TallerPersonal: React.FC = () => {
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [filtroRol, setFiltroRol] = useState<string>('Todos')
+  const [filtroEstado, setFiltroEstado] = useState<'Todos' | 'Activos' | 'Inactivos'>('Todos')
 
   // Modales
   const [modalNuevo, setModalNuevo] = useState(false)
+  const [modalEditar, setModalEditar] = useState(false)
+  const [mecanicoAEditar, setMecanicoAEditar] = useState<ResponsableTaller | null>(null)
   const [mecanicoSeleccionadoQR, setMecanicoSeleccionadoQR] = useState<ResponsableTaller | null>(null)
   const [modalQR, setModalQR] = useState(false)
 
@@ -34,6 +41,12 @@ export const TallerPersonal: React.FC = () => {
   const [tipo, setTipo] = useState<'Tracto' | 'Caja'>('Tracto')
   const [rol, setRol] = useState<'Mecánico A' | 'Mecánico B' | 'Auxiliar' | 'Termoquineros'>('Mecánico A')
   const [guardando, setGuardando] = useState(false)
+
+  // Formulario editar mecánico
+  const [editNombre, setEditNombre] = useState('')
+  const [editTipo, setEditTipo] = useState<'Tracto' | 'Caja'>('Tracto')
+  const [editRol, setEditRol] = useState<'Mecánico A' | 'Mecánico B' | 'Auxiliar' | 'Termoquineros'>('Mecánico A')
+  const [editActivo, setEditActivo] = useState(true)
 
   const fallbackMecanicos: ResponsableTaller[] = [
     { id: 1, nombre: 'Carlos Méndez', tipo: 'Tracto', rol: 'Mecánico A' },
@@ -61,6 +74,77 @@ export const TallerPersonal: React.FC = () => {
     setModalQR(true)
   }
 
+  const abrirEdicion = (m: ResponsableTaller) => {
+    setMecanicoAEditar(m)
+    setEditNombre(m.nombre)
+    setEditTipo(m.tipo || 'Tracto')
+    setEditRol(m.rol)
+    setEditActivo(m.activo !== false)
+    setModalEditar(true)
+  }
+
+  const alternarActivo = async (m: ResponsableTaller) => {
+    const nuevoEstado = !(m.activo !== false)
+    try {
+      await actualizarResponsableTaller(m.id, { activo: nuevoEstado })
+      agregarToast({
+        tipo: 'success',
+        titulo: nuevoEstado ? 'Mecánico Reactivado' : 'Baja Operativa Registrada',
+        mensaje: `${m.nombre} ahora está ${nuevoEstado ? 'Activo' : 'Inactivo'} para asignaciones.`,
+      })
+      await cargarMecanicos()
+    } catch {
+      setMecanicos(prev => prev.map(item => item.id === m.id ? { ...item, activo: nuevoEstado } : item))
+      agregarToast({
+        tipo: 'info',
+        titulo: 'Estado Actualizado (Local)',
+        mensaje: `${m.nombre} ahora está ${nuevoEstado ? 'Activo' : 'Inactivo'}.`,
+      })
+    }
+  }
+
+  const manejarGuardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!mecanicoAEditar || !editNombre.trim()) return
+
+    setGuardando(true)
+    try {
+      await actualizarResponsableTaller(mecanicoAEditar.id, {
+        nombre: editNombre.trim(),
+        tipo: editTipo,
+        rol: editRol,
+        activo: editActivo,
+      })
+
+      agregarToast({
+        tipo: 'success',
+        titulo: 'Mecánico Actualizado',
+        mensaje: `Se actualizaron los datos de ${editNombre.trim()} correctamente.`,
+      })
+
+      setModalEditar(false)
+      setMecanicoAEditar(null)
+      await cargarMecanicos()
+    } catch {
+      setMecanicos(prev => prev.map(m => m.id === mecanicoAEditar.id ? {
+        ...m,
+        nombre: editNombre.trim(),
+        tipo: editTipo,
+        rol: editRol,
+        activo: editActivo,
+      } : m))
+      setModalEditar(false)
+      setMecanicoAEditar(null)
+      agregarToast({
+        tipo: 'info',
+        titulo: 'Mecánico Actualizado (Local)',
+        mensaje: `Datos modificados localmente.`,
+      })
+    } finally {
+      setGuardando(false)
+    }
+  }
+
   const manejarGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nombre.trim()) return
@@ -78,6 +162,7 @@ export const TallerPersonal: React.FC = () => {
         nombre: nombre.trim(),
         tipo,
         rol,
+        activo: true,
       }
 
       agregarToast({
@@ -100,6 +185,7 @@ export const TallerPersonal: React.FC = () => {
         nombre: nombre.trim(),
         tipo,
         rol,
+        activo: true,
       }
       setMecanicos(prev => [...prev, nuevo])
       setModalNuevo(false)
@@ -126,6 +212,8 @@ export const TallerPersonal: React.FC = () => {
 
     if (!coincideTexto) return false
     if (filtroRol !== 'Todos' && m.rol !== filtroRol) return false
+    if (filtroEstado === 'Activos' && m.activo === false) return false
+    if (filtroEstado === 'Inactivos' && m.activo !== false) return false
     return true
   })
 
@@ -171,8 +259,8 @@ export const TallerPersonal: React.FC = () => {
       </div>
 
       {/* Barra de Búsqueda y Filtros de Especialistas */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-[rgba(243,239,231,0.1)] bg-[#14181D]/80 p-4">
-        <div className="relative flex-1 w-full sm:max-w-md">
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-3 rounded-2xl border border-[rgba(243,239,231,0.1)] bg-[#14181D]/80 p-4">
+        <div className="relative flex-1 w-full lg:max-w-md">
           <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-[#B8B2A6]" />
           <input
             type="text"
@@ -183,21 +271,41 @@ export const TallerPersonal: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-          {(['Todos', 'Mecánico A', 'Mecánico B', 'Auxiliar', 'Termoquineros'] as const).map(rolItem => (
-            <button
-              key={rolItem}
-              type="button"
-              onClick={() => setFiltroRol(rolItem)}
-              className={`rounded-lg px-3 py-1.5 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                filtroRol === rolItem
-                  ? 'bg-[#F2620F] text-[#16191E]'
-                  : 'bg-[#1C1C1C] text-[#B8B2A6] hover:text-white'
-              }`}
-            >
-              {rolItem}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* Filtro por estado operativo */}
+          <div className="flex items-center gap-1 bg-[#1C1C1C] p-1 rounded-xl border border-[rgba(243,239,231,0.1)]">
+            {(['Todos', 'Activos', 'Inactivos'] as const).map(est => (
+              <button
+                key={est}
+                type="button"
+                onClick={() => setFiltroEstado(est)}
+                className={`rounded-lg px-2.5 py-1 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  filtroEstado === est
+                    ? 'bg-[#F2620F] text-[#16191E]'
+                    : 'text-[#B8B2A6] hover:text-white'
+                }`}
+              >
+                {est}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {(['Todos', 'Mecánico A', 'Mecánico B', 'Auxiliar', 'Termoquineros'] as const).map(rolItem => (
+              <button
+                key={rolItem}
+                type="button"
+                onClick={() => setFiltroRol(rolItem)}
+                className={`rounded-lg px-3 py-1.5 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  filtroRol === rolItem
+                    ? 'bg-[#C5A059] text-[#16191E]'
+                    : 'bg-[#1C1C1C] text-[#B8B2A6] hover:text-white'
+                }`}
+              >
+                {rolItem}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -214,11 +322,16 @@ export const TallerPersonal: React.FC = () => {
         ) : (
           mecanicosFiltrados.map(m => {
             const folio = `MEC-${String(m.id).padStart(3, '0')}`
+            const estaActivo = m.activo !== false
 
             return (
               <div
                 key={m.id}
-                className="group relative rounded-2xl border border-[rgba(243,239,231,0.1)] bg-[#14181D]/80 p-5 space-y-4 hover:border-[#F2620F]/50 transition-all flex flex-col justify-between"
+                className={`group relative rounded-2xl border bg-[#14181D]/80 p-5 space-y-4 transition-all flex flex-col justify-between ${
+                  estaActivo 
+                    ? 'border-[rgba(243,239,231,0.1)] hover:border-[#F2620F]/50' 
+                    : 'border-red-950/40 bg-[#121417]/80 opacity-70 hover:opacity-100'
+                }`}
               >
                 <div>
                   {/* Cabecera de la Tarjeta */}
@@ -254,23 +367,53 @@ export const TallerPersonal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Estatus y Botón de Gafete QR */}
+                {/* Estatus Real y Botones de Acción */}
                 <div className="border-t border-[rgba(243,239,231,0.06)] pt-3 space-y-3">
                   <div className="flex items-center justify-between text-[11px] text-[#B8B2A6]">
                     <span>Estatus Técnico:</span>
-                    <span className="flex items-center gap-1 font-['Barlow_Condensed'] font-bold text-[#3FA65C] uppercase">
-                      <CheckCircle2 className="h-3 w-3" /> Acreditado
-                    </span>
+                    {estaActivo ? (
+                      <span className="flex items-center gap-1 font-['Barlow_Condensed'] font-bold text-[#3FA65C] uppercase">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Activo
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 font-['Barlow_Condensed'] font-bold text-[#E84E38] uppercase">
+                        <XCircle className="h-3.5 w-3.5" /> Inactivo
+                      </span>
+                    )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => abrirGafeteQR(m)}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] px-3 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-white hover:border-[#F2620F] hover:text-[#F2620F] transition-all cursor-pointer shadow-sm"
-                  >
-                    <QrCode className="h-3.5 w-3.5 text-[#F2620F]" />
-                    <span>Ver Gafete QR</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => abrirGafeteQR(m)}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] px-2.5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-white hover:border-[#F2620F] hover:text-[#F2620F] transition-all cursor-pointer shadow-sm"
+                      title="Ver credencial QR"
+                    >
+                      <QrCode className="h-3.5 w-3.5 text-[#F2620F]" />
+                      <span>Gafete</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirEdicion(m)}
+                      className="flex items-center justify-center gap-1 rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] px-2.5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-[#B8B2A6] hover:text-white hover:border-white transition-all cursor-pointer"
+                      title="Editar datos"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => alternarActivo(m)}
+                      className={`flex items-center justify-center rounded-xl border p-2 transition-all cursor-pointer ${
+                        estaActivo 
+                          ? 'border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200' 
+                          : 'border-green-900/40 bg-green-950/20 text-green-400 hover:bg-green-900/40 hover:text-green-200'
+                      }`}
+                      title={estaActivo ? 'Dar de baja operativa' : 'Reactivar técnico'}
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -366,6 +509,122 @@ export const TallerPersonal: React.FC = () => {
                   className="rounded-xl bg-[#F2620F] px-5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-[#16191E] hover:bg-[#D9550C] cursor-pointer disabled:opacity-50"
                 >
                   {guardando ? 'Guardando...' : 'Registrar y Generar QR'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición de Mecánico */}
+      {modalEditar && mecanicoAEditar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md rounded-2xl border border-[rgba(243,239,231,0.15)] bg-[#14181D] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[rgba(243,239,231,0.1)] bg-[#1C1C1C] px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C5A059] text-[#16191E]">
+                  <Edit2 className="h-5 w-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-['Barlow_Condensed'] text-xl font-bold uppercase tracking-wide text-white">
+                    Editar Mecánico
+                  </h3>
+                  <p className="text-xs text-[#B8B2A6]">
+                    MEC-{String(mecanicoAEditar.id).padStart(3, '0')} · {mecanicoAEditar.nombre}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalEditar(false)}
+                className="text-[#B8B2A6] hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={manejarGuardarEdicion} className="p-6 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#B8B2A6]">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  value={editNombre}
+                  onChange={e => setEditNombre(e.target.value)}
+                  placeholder="Nombre y apellido"
+                  className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] py-2 px-3 text-xs text-white focus:border-[#F2620F] focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[#B8B2A6]">
+                    Especialidad
+                  </label>
+                  <select
+                    value={editTipo}
+                    onChange={e => setEditTipo(e.target.value as 'Tracto' | 'Caja')}
+                    className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] py-2 px-3 font-['Barlow_Condensed'] text-sm font-semibold text-white focus:border-[#F2620F] focus:outline-none"
+                  >
+                    <option value="Tracto">Tracto (Motor/Chasis)</option>
+                    <option value="Caja">Caja Seca / Suspensión</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[#B8B2A6]">
+                    Nivel / Rol
+                  </label>
+                  <select
+                    value={editRol}
+                    onChange={e => setEditRol(e.target.value as ResponsableTaller['rol'])}
+                    className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] py-2 px-3 font-['Barlow_Condensed'] text-sm font-semibold text-white focus:border-[#F2620F] focus:outline-none"
+                  >
+                    <option value="Mecánico A">Mecánico A (Senior)</option>
+                    <option value="Mecánico B">Mecánico B</option>
+                    <option value="Auxiliar">Auxiliar de Taller</option>
+                    <option value="Termoquineros">Termoquineros</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Toggle de Estado Activo */}
+              <div className="flex items-center justify-between rounded-xl border border-[rgba(243,239,231,0.1)] bg-[#1C1C1C] p-3.5">
+                <div>
+                  <div className="text-xs font-bold text-white">Estado Operativo</div>
+                  <div className="text-[11px] text-[#B8B2A6]">
+                    {editActivo ? 'Disponible para asignación de órdenes' : 'Inactivo / Baja en cuadrilla'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditActivo(prev => !prev)}
+                  className={`rounded-lg px-3 py-1 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    editActivo 
+                      ? 'bg-[#3FA65C]/20 text-[#3FA65C] border border-[#3FA65C]/40' 
+                      : 'bg-red-950/30 text-red-400 border border-red-900/50'
+                  }`}
+                >
+                  {editActivo ? 'Activo' : 'Inactivo'}
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-[rgba(243,239,231,0.08)]">
+                <button
+                  type="button"
+                  onClick={() => setModalEditar(false)}
+                  className="rounded-xl border border-[rgba(243,239,231,0.15)] px-4 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#B8B2A6] hover:text-white cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="rounded-xl bg-[#C5A059] px-5 py-2 font-['Barlow_Condensed'] text-xs font-bold uppercase tracking-wider text-[#16191E] hover:bg-[#B38F46] cursor-pointer disabled:opacity-50"
+                >
+                  {guardando ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>

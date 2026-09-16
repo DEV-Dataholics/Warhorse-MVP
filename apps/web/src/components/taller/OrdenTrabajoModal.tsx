@@ -13,8 +13,10 @@ import { jsPDF } from 'jspdf'
 import { 
   ARTICULOS_INSPECCION_TALLER, 
   DISPOSICIONES_SALIDA_NO_CONFORME,
-  type ReporteMecanicoTallerForm 
+  type ReporteMecanicoTallerForm,
+  type ReporteRemolqueTallerForm
 } from '../../lib/tallerSchema'
+import { OrdenRemolqueModal } from './OrdenRemolqueModal'
 
 export interface DetalleOT {
   id: number
@@ -34,6 +36,7 @@ export interface DetalleOT {
   materiales?: Array<{ pieza: string; cantidad: number; origen?: string }>
   pendientes?: string[]
   reporte_mecanico?: ReporteMecanicoTallerForm
+  reporte_remolque?: ReporteRemolqueTallerForm
 }
 
 interface Props {
@@ -45,6 +48,11 @@ interface Props {
 export const OrdenTrabajoModal: React.FC<Props> = ({ ot, abierto, alCerrar }) => {
   const navigate = useNavigate()
   if (!abierto || !ot) return null
+
+  // Si la OT corresponde a un Remolque / Caja, renderizar el formato oficial Nº 478
+  if (ot.reporte_remolque || ot.tipo_unidad === 'Caja' || ot.tipo_unidad === 'Thermo') {
+    return <OrdenRemolqueModal ot={ot as any} abierto={abierto} alCerrar={alCerrar} />
+  }
 
   const rep = ot.reporte_mecanico
 

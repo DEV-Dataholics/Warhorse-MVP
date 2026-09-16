@@ -5,20 +5,19 @@ import {
   History, 
   Wrench, 
   PlusCircle, 
-  CheckCircle2, 
   Users, 
   ShoppingCart, 
   Boxes, 
-  Receipt, 
   LayoutDashboard, 
   FileSpreadsheet, 
   ShieldCheck, 
   Fuel, 
-  ExternalLink,
   ChevronRight,
   Recycle,
   Tablet,
-  Package
+  Package,
+  Truck,
+  Building2
 } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUiStore } from '../../store/useUiStore'
@@ -41,7 +40,7 @@ export const AppSidebar: React.FC = () => {
   const { usuario } = useAuthStore()
   const { sidebarAbierto } = useUiStore()
 
-  // Definición de las secciones de navegación por módulo operativo
+  // Definición de las secciones de navegación saneadas sin rutas fantasma ni ruido cognitivo
   const secciones: SeccionNavegacion[] = [
     {
       titulo: 'Módulo de Patio (Operador)',
@@ -51,20 +50,27 @@ export const AppSidebar: React.FC = () => {
           titulo: 'Terminal Tablet (Kiosk)',
           ruta: '/patio',
           icono: Tablet,
-          badge: 'Kiosk',
-          colorBadge: 'bg-[#F2620F]/20 text-[#F2620F]',
         },
         {
           titulo: 'Nueva Inspección',
           ruta: '/patio/inspeccion',
           icono: ClipboardCheck,
-          badge: 'Offline',
-          colorBadge: 'bg-[#3FA65C]/20 text-[#3FA65C]',
         },
         {
           titulo: 'Historial de Revisiones',
           ruta: '/patio/historial',
           icono: History,
+        },
+      ],
+    },
+    {
+      titulo: 'Gestión de Flota',
+      rolesPermitidos: ['admin', 'taller', 'compras'],
+      items: [
+        {
+          titulo: 'Catálogo de Flota',
+          ruta: '/catalogo',
+          icono: Truck,
         },
       ],
     },
@@ -76,25 +82,16 @@ export const AppSidebar: React.FC = () => {
           titulo: 'Órdenes de Trabajo (OT)',
           ruta: '/taller/ordenes',
           icono: Wrench,
-          badge: 'Activas',
-          colorBadge: 'bg-[#F2620F]/20 text-[#F2620F]',
+        },
+        {
+          titulo: 'Nueva Orden de Trabajo',
+          ruta: '/taller/ingreso',
+          icono: PlusCircle,
         },
         {
           titulo: 'Pedido de Refacciones',
           ruta: '/taller/refacciones',
           icono: ShoppingCart,
-          badge: 'Taller',
-          colorBadge: 'bg-[#F2620F]/20 text-[#F2620F]',
-        },
-        {
-          titulo: 'Recepción e Ingreso',
-          ruta: '/taller/ingreso',
-          icono: PlusCircle,
-        },
-        {
-          titulo: 'Liberaciones y Pendientes',
-          ruta: '/taller/liberaciones',
-          icono: CheckCircle2,
         },
         {
           titulo: 'Equipo de Mecánicos',
@@ -108,13 +105,6 @@ export const AppSidebar: React.FC = () => {
       rolesPermitidos: ['compras', 'admin'],
       items: [
         {
-          titulo: 'Carrito de Compras',
-          ruta: '/compras/carrito',
-          icono: ShoppingCart,
-          badge: 'Requisición',
-          colorBadge: 'bg-[#C5A059]/20 text-[#C5A059]',
-        },
-        {
           titulo: 'Cola de Requisiciones',
           ruta: '/compras/cola',
           icono: Boxes,
@@ -123,20 +113,16 @@ export const AppSidebar: React.FC = () => {
           titulo: 'Inventario de Almacén',
           ruta: '/compras/inventario',
           icono: Package,
-          badge: 'Stock',
-          colorBadge: 'bg-[#C5A059]/20 text-[#C5A059]',
         },
         {
           titulo: 'Almacén Yonke ($0)',
           ruta: '/compras/yonke',
           icono: Recycle,
-          badge: '$0 Costo',
-          colorBadge: 'bg-[#3FA65C]/20 text-[#3FA65C]',
         },
         {
-          titulo: 'Caja Chica (Misceláneos)',
-          ruta: '/compras/caja-chica',
-          icono: Receipt,
+          titulo: 'Directorio de Proveedores',
+          ruta: '/compras/proveedores',
+          icono: Building2,
         },
       ],
     },
@@ -166,14 +152,9 @@ export const AppSidebar: React.FC = () => {
       rolesPermitidos: ['diesel', 'admin'],
       items: [
         {
-          titulo: 'Registro de Cargas',
+          titulo: 'Control de Combustible',
           ruta: '/diesel/cargas',
           icono: Fuel,
-        },
-        {
-          titulo: 'Cargas Externas',
-          ruta: '/diesel/externas',
-          icono: ExternalLink,
         },
       ],
     },

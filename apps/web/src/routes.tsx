@@ -185,14 +185,6 @@ export function AppRoutes() {
           }
         />
         <Route
-          path="/compras/yonkee"
-          element={
-            <RutaProtegida rolesPermitidos={['compras', 'admin']}>
-              <ComprasYonke />
-            </RutaProtegida>
-          }
-        />
-        <Route
           path="/compras/inventario"
           element={
             <RutaProtegida rolesPermitidos={['compras', 'admin']}>
@@ -273,7 +265,7 @@ export function AppRoutes() {
         <Route
           path="/catalogo"
           element={
-            <RutaProtegida rolesPermitidos={['admin', 'compras']}>
+            <RutaProtegida rolesPermitidos={['admin', 'compras', 'taller']}>
               <Catalogo />
             </RutaProtegida>
           }

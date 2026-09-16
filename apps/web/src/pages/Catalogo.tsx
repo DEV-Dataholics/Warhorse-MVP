@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import Camion from '../components/Camion'
 import Kicker from '../components/Kicker'
 import { SortTh, TablaFooter, TablaToolbar } from '../components/TablaControls'
-import { ApiError, actualizarUnidad, crearUnidad, getArticulosAlmacen, actualizarArticuloAlmacen, crearArticuloAlmacen, type UnidadApi, type ArticuloAlmacenApi } from '../lib/api'
+import { ApiError, actualizarUnidad, crearUnidad, type UnidadApi } from '../lib/api'
 import { useDemo } from '../lib/demo'
-import { badge, card, estadoUnidadColors, FD, fmt, h2Titulo, h3Titulo, subTitulo, tdCell, thCell, theadRow } from '../lib/estilos'
+import { badge, card, estadoUnidadColors, FD, fmt, h2Titulo, subTitulo, tdCell, theadRow } from '../lib/estilos'
 import { useTabla } from '../lib/useTabla'
 import type { EstadoUnidad, TipoUnidad } from '../lib/types'
 
@@ -32,26 +32,6 @@ interface Alta {
 
 const altaVacia: Alta = { id_unidad: '', tipo: 'Tractor', operacion: '', estado: 'Activo', fecha_alta: '', valor_referencia: '', vencimiento_documentacion: '', vin: '', numero_economico: '', marca: '', modelo: '', placas: '' }
 
-interface NuevoArticulo {
-  nombre_normalizado: string
-  numero_parte: string
-  precio_referencia: string
-  stock_minimo: string
-  stock_maximo: string
-  stock_actual: string
-  validar_limites: boolean
-}
-
-const articuloVacio: NuevoArticulo = {
-  nombre_normalizado: '',
-  numero_parte: '',
-  precio_referencia: '',
-  stock_minimo: '',
-  stock_maximo: '',
-  stock_actual: '',
-  validar_limites: false,
-}
-
 const TIPOS: FiltroTipo[] = ['Todos', 'Tractor', 'Caja', 'Thermo', 'Servicio']
 const ESTADOS: FiltroEstado[] = ['Todos', 'Activo', 'Yonke', 'Inactivo', 'Vendido']
 
@@ -74,13 +54,6 @@ const obtenerColorSemaforo = (fechaStr?: string | null): { bg: string; fg: strin
 export default function Catalogo() {
   const { sesion, unidades, recargarUnidades, toast } = useDemo()
   const navigate = useNavigate()
-  
-  // Tab State
-  const [tabActiva, setTabActiva] = useState<'flota' | 'almacen'>('flota')
-  const [articulos, setArticulos] = useState<ArticuloAlmacenApi[]>([])
-  const [cargandoAlmacen, setCargandoAlmacen] = useState(false)
-  const [editarArticulo, setEditarArticulo] = useState<{ id: number; nombre: string; stock_minimo: string; stock_maximo: string; stock_actual: string; validar_limites: boolean } | null>(null)
-  const [nuevoArticulo, setNuevoArticulo] = useState<NuevoArticulo | null>(null)
 
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('Todos')
   const [filtroTipo, setFiltroTipo]     = useState<FiltroTipo>('Todos')
@@ -89,7 +62,6 @@ export default function Catalogo() {
   const [error, setError] = useState('')
   
   const esAdmin = sesion?.roles?.includes('admin')
-  const esCompras = sesion?.roles?.includes('compras')
 
   const filtered = useMemo(
     () =>
@@ -111,23 +83,6 @@ export default function Catalogo() {
     }, []),
   )
 
-  const cargarAlmacen = useCallback(async () => {
-    setCargandoAlmacen(true)
-    try {
-      setArticulos(await getArticulosAlmacen())
-    } catch (e) {
-      toast('No se pudo cargar el inventario de almacén.')
-    } finally {
-      setCargandoAlmacen(false)
-    }
-  }, [toast])
-
-  useEffect(() => {
-    if (tabActiva === 'almacen') {
-      void cargarAlmacen()
-    }
-  }, [tabActiva, cargarAlmacen])
-
   const guardarAlta = async () => {
     if (!alta) return
     setError('')
@@ -140,7 +95,7 @@ export default function Catalogo() {
         fecha_alta: alta.fecha_alta,
         valor_referencia: alta.valor_referencia === '' ? null : Number(alta.valor_referencia),
         vencimiento_documentacion: alta.vencimiento_documentacion === '' ? null : alta.vencimiento_documentacion,
-          vin: alta.vin === '' ? null : alta.vin,
+        vin: alta.vin === '' ? null : alta.vin,
         numero_economico: alta.numero_economico === '' ? null : alta.numero_economico,
         marca: alta.marca === '' ? null : alta.marca,
         modelo: alta.modelo === '' ? null : alta.modelo,
@@ -166,12 +121,12 @@ export default function Catalogo() {
       }
       if (editar.vencimiento_documentacion !== (editar.unidad.vencimiento_documentacion ?? '')) {
         cambio.vencimiento_documentacion = editar.vencimiento_documentacion === '' ? null : editar.vencimiento_documentacion
-        }
-        if (editar.vin !== (editar.unidad.vin ?? '')) cambio.vin = editar.vin === '' ? null : editar.vin
-        if (editar.numero_economico !== (editar.unidad.numero_economico ?? '')) cambio.numero_economico = editar.numero_economico === '' ? null : editar.numero_economico
-        if (editar.marca !== (editar.unidad.marca ?? '')) cambio.marca = editar.marca === '' ? null : editar.marca
-        if (editar.modelo !== (editar.unidad.modelo ?? '')) cambio.modelo = editar.modelo === '' ? null : editar.modelo
-        if (editar.placas !== (editar.unidad.placas ?? '')) cambio.placas = editar.placas === '' ? null : editar.placas
+      }
+      if (editar.vin !== (editar.unidad.vin ?? '')) cambio.vin = editar.vin === '' ? null : editar.vin
+      if (editar.numero_economico !== (editar.unidad.numero_economico ?? '')) cambio.numero_economico = editar.numero_economico === '' ? null : editar.numero_economico
+      if (editar.marca !== (editar.unidad.marca ?? '')) cambio.marca = editar.marca === '' ? null : editar.marca
+      if (editar.modelo !== (editar.unidad.modelo ?? '')) cambio.modelo = editar.modelo === '' ? null : editar.modelo
+      if (editar.placas !== (editar.unidad.placas ?? '')) cambio.placas = editar.placas === '' ? null : editar.placas
 
       if (Object.keys(cambio).length > 0) {
         await actualizarUnidad(editar.unidad.id, cambio)
@@ -181,65 +136,6 @@ export default function Catalogo() {
       setEditar(null)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo actualizar la unidad.')
-    }
-  }
-
-  const guardarEdicionArticulo = async () => {
-    if (!editarArticulo) return
-    setError('')
-    try {
-      const min = editarArticulo.stock_minimo === '' ? null : Number(editarArticulo.stock_minimo)
-      const max = editarArticulo.stock_maximo === '' ? null : Number(editarArticulo.stock_maximo)
-      const act = editarArticulo.stock_actual === '' ? 0 : Number(editarArticulo.stock_actual)
-      
-      if (min !== null && max !== null && min > max) {
-        return setError('El stock mínimo no puede ser mayor que el stock máximo.')
-      }
-
-      await actualizarArticuloAlmacen(editarArticulo.id, {
-        stock_minimo: min,
-        stock_maximo: max,
-        stock_actual: act,
-        validar_limites: editarArticulo.validar_limites,
-      })
-      await cargarAlmacen()
-      toast(`${editarArticulo.nombre} configurado correctamente`)
-      setEditarArticulo(null)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo configurar el inventario.')
-    }
-  }
-
-  const guardarNuevoArticulo = async () => {
-    if (!nuevoArticulo) return
-    setError('')
-    try {
-      const min = nuevoArticulo.stock_minimo === '' ? null : Number(nuevoArticulo.stock_minimo)
-      const max = nuevoArticulo.stock_maximo === '' ? null : Number(nuevoArticulo.stock_maximo)
-      const act = nuevoArticulo.stock_actual === '' ? 0 : Number(nuevoArticulo.stock_actual)
-      const ref = Number(nuevoArticulo.precio_referencia)
-
-      if (isNaN(ref) || ref <= 0) {
-        return setError('El precio de referencia debe ser mayor a 0.')
-      }
-      if (min !== null && max !== null && min > max) {
-        return setError('El stock mínimo no puede ser mayor que el stock máximo.')
-      }
-
-      await crearArticuloAlmacen({
-        nombre_normalizado: nuevoArticulo.nombre_normalizado.trim(),
-        numero_parte: nuevoArticulo.numero_parte.trim() === '' ? null : nuevoArticulo.numero_parte.trim(),
-        precio_referencia: ref,
-        stock_minimo: min,
-        stock_maximo: max,
-        stock_actual: act,
-        validar_limites: nuevoArticulo.validar_limites,
-      })
-      await cargarAlmacen()
-      toast(`Artículo "${nuevoArticulo.nombre_normalizado}" agregado al catálogo`)
-      setNuevoArticulo(null)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo crear el artículo.')
     }
   }
 
@@ -296,36 +192,41 @@ export default function Catalogo() {
         </div>
       </div>
 
-      {/* Tabs navigation */}
-      <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid #D8D2C4', paddingBottom: 0, marginTop: 12, marginBottom: 18, animation: 'fadeUp 0.38s ease' }}>
+      {/* Banner de Navegación Unificado */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #D8D2C4', paddingBottom: 12, marginTop: 12, marginBottom: 18, animation: 'fadeUp 0.38s ease', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#F2620F' }}>
+            🚚 Flota de Unidades Activas y en Taller
+          </span>
+          <span style={{ fontSize: 12, background: 'rgba(242,98,15,0.1)', color: '#F2620F', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+            {unidades.length} unidades
+          </span>
+        </div>
+
         <button
-          onClick={() => setTabActiva('flota')}
-          className="hv-op85"
+          type="button"
+          onClick={() => navigate('/compras/inventario')}
+          className="hv-borde-ink"
           style={{
-            padding: '12px 18px', background: 'transparent', border: 'none',
-            borderBottom: tabActiva === 'flota' ? '3px solid #F2620F' : '3px solid transparent',
-            color: tabActiva === 'flota' ? '#F2620F' : '#6F6A60', fontWeight: 700, fontSize: 14.5, cursor: 'pointer',
-            transition: 'all 0.2s ease', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: FD
+            padding: '8px 14px',
+            background: '#FAF7F0',
+            border: '1px solid #D8D2C4',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#16191E',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
           }}
         >
-          🚚 Flota de Unidades
-        </button>
-        <button
-          onClick={() => setTabActiva('almacen')}
-          className="hv-op85"
-          style={{
-            padding: '12px 18px', background: 'transparent', border: 'none',
-            borderBottom: tabActiva === 'almacen' ? '3px solid #F2620F' : '3px solid transparent',
-            color: tabActiva === 'almacen' ? '#F2620F' : '#6F6A60', fontWeight: 700, fontSize: 14.5, cursor: 'pointer',
-            transition: 'all 0.2s ease', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: FD
-          }}
-        >
-          📦 Inventario de Almacén
+          <span>📦 Ir a Inventario y Kardex de Almacén</span>
+          <span>→</span>
         </button>
       </div>
 
-      {tabActiva === 'flota' ? (
-        <div data-tour="catalogo" style={{ ...card, padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.4s ease' }}>
+      <div data-tour="catalogo" style={{ ...card, padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.4s ease' }}>
           <TablaToolbar
             ctrl={ctrl}
             filtros={ESTADOS.map((f) => ({ value: f }))}
@@ -471,117 +372,6 @@ export default function Catalogo() {
 
           <TablaFooter ctrl={ctrl} />
         </div>
-      ) : (
-        <div style={{ ...card, padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.4s ease' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid #EFEAE0', paddingBottom: 10 }}>
-            <h3 style={h3Titulo}>Catálogo de Artículos y Existencias Límites</h3>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <span style={{ fontSize: 13, color: '#8A8374', fontWeight: 600 }}>{articulos.length} artículos en almacén</span>
-              <button
-                onClick={() => {
-                  import('../lib/csv').then(({ descargarCSV }) => {
-                    const headers = ['Nombre', 'Número de Parte', 'Precio Ref', 'Stock Actual', 'Stock Mínimo', 'Stock Máximo', 'Alerta Límites']
-                    const rows = articulos.map(a => [
-                      String(a.nombre_normalizado),
-                      String(a.numero_parte || '—'),
-                      String(a.precio_referencia),
-                      String(a.stock_actual),
-                      String(a.stock_minimo ?? '—'),
-                      String(a.stock_maximo ?? '—'),
-                      String(a.validar_limites ? 'Sí' : 'No')
-                    ])
-                    const filename = `Reporte_Almacen_${new Date().toISOString().split('T')[0]}.csv`
-                    descargarCSV(headers, rows, filename)
-                    toast(`Reporte ${filename} descargado exitosamente.`)
-                  })
-                }}
-                className="hv-borde-ink"
-                style={{ padding: '7px 14px', background: '#fff', color: '#4A4438', border: '1px solid #D8D2C4', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', cursor: 'pointer' }}
-              >
-                ⬇️ Exportar CSV
-              </button>
-              {(esAdmin || esCompras) && (
-                <button
-                  onClick={() => { setError(''); setNuevoArticulo({ ...articuloVacio }) }}
-                  className="hv-naranja"
-                  style={{ padding: '7px 14px', background: '#F2620F', color: '#fff', border: 'none', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 14, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer' }}
-                >
-                  + Agregar producto
-                </button>
-              )}
-            </div>
-          </div>
-
-          {cargandoAlmacen ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#6F6A60', fontSize: 15 }}>
-              Cargando catálogo de almacén...
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 640 }}>
-              <thead>
-                <tr style={theadRow}>
-                  <th style={thCell}>Artículo</th>
-                  <th style={thCell}>Número de Parte</th>
-                  <th style={{ ...thCell, textAlign: 'right' }}>Precio de Referencia</th>
-                  <th style={{ ...thCell, textAlign: 'right' }}>Stock Actual</th>
-                  <th style={{ ...thCell, textAlign: 'right' }}>Mín. Existencias</th>
-                  <th style={{ ...thCell, textAlign: 'right' }}>Máx. Existencias</th>
-                  <th style={{ ...thCell, textAlign: 'center' }}>Validar Alerta</th>
-                  <th style={{ ...thCell, padding: '12px 10px', borderBottom: '2px solid #16191E' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {articulos.map((art) => (
-                  <tr key={art.id} className="hv-fila">
-                    <td style={{ ...tdCell, fontWeight: 600, color: '#16191E' }}>{art.nombre_normalizado}</td>
-                    <td style={tdCell}>{art.numero_parte ?? '—'}</td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {art.precio_referencia ? fmt(art.precio_referencia) : '—'}
-                    </td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
-                      {art.stock_actual}
-                    </td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#B4430A' }}>
-                      {art.stock_minimo ?? '—'}
-                    </td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#2C7A44' }}>
-                      {art.stock_maximo ?? '—'}
-                    </td>
-                    <td style={{ ...tdCell, textAlign: 'center' }}>
-                      {art.validar_limites ? (
-                        <span style={badge('#E5F3E9', '#2C7A44', '#9FD4B0')}>Sí</span>
-                      ) : (
-                        <span style={badge('#EAE6DC', '#4A4438', '#C9C2B2')}>No</span>
-                      )}
-                    </td>
-                    <td style={{ ...tdCell, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {(esAdmin || esCompras) && (
-                        <button
-                          onClick={() => {
-                            setError('')
-                            setEditarArticulo({
-                              id: art.id,
-                              nombre: art.nombre_normalizado,
-                              stock_minimo: art.stock_minimo === null ? '' : String(art.stock_minimo),
-                              stock_maximo: art.stock_maximo === null ? '' : String(art.stock_maximo),
-                              stock_actual: String(art.stock_actual),
-                              validar_limites: !!art.validar_limites,
-                            })
-                          }}
-                          className="hv-inkfill"
-                          style={{ padding: '7px 12px', background: '#F3EFE7', border: '1px solid #D8D2C4', borderRadius: 7, fontSize: 12.5, fontWeight: 700, color: '#16191E', cursor: 'pointer' }}
-                        >
-                          Configurar Mín/Máx
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
       {/* Modals */}
       {alta &&
@@ -727,70 +517,6 @@ export default function Catalogo() {
           </>,
           () => void guardarEdicion(),
           () => setEditar(null),
-        )}
-
-      {editarArticulo &&
-        modal(
-          'Limites de existencias para: ' + editarArticulo.nombre,
-          <>
-            <label style={etiqueta}>
-              Stock Actual
-              <input type="number" min={0} placeholder="Ej. 12" style={campo} value={editarArticulo.stock_actual} onChange={(e) => setEditarArticulo({ ...editarArticulo, stock_actual: e.target.value })} />
-            </label>
-            <label style={etiqueta}>
-              Stock Mínimo
-              <input type="number" min={0} placeholder="Ej. 5" style={campo} value={editarArticulo.stock_minimo} onChange={(e) => setEditarArticulo({ ...editarArticulo, stock_minimo: e.target.value })} />
-            </label>
-            <label style={etiqueta}>
-              Stock Máximo
-              <input type="number" min={0} placeholder="Ej. 20" style={campo} value={editarArticulo.stock_maximo} onChange={(e) => setEditarArticulo({ ...editarArticulo, stock_maximo: e.target.value })} />
-            </label>
-            <label style={{ ...etiqueta, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-              <input type="checkbox" checked={editarArticulo.validar_limites} onChange={(e) => setEditarArticulo({ ...editarArticulo, validar_limites: e.target.checked })} />
-              Activar alertas de máximos y mínimos para este producto
-            </label>
-          </>,
-          () => void guardarEdicionArticulo(),
-          () => setEditarArticulo(null),
-        )}
-
-      {nuevoArticulo &&
-        modal(
-          'Agregar Producto al Catálogo',
-          <>
-            <label style={etiqueta}>
-              Nombre del Artículo
-              <input style={campo} value={nuevoArticulo.nombre_normalizado} placeholder="Ej. Conexión rápida 1/2" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, nombre_normalizado: e.target.value })} />
-            </label>
-            <label style={etiqueta}>
-              Número de Parte / SKU
-              <input style={campo} value={nuevoArticulo.numero_parte} placeholder="Opcional" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, numero_parte: e.target.value })} />
-            </label>
-            <label style={etiqueta}>
-              Precio de Referencia (MXN)
-              <input type="number" min={0.01} step="0.01" style={campo} value={nuevoArticulo.precio_referencia} placeholder="Ej. 450.00" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, precio_referencia: e.target.value })} />
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <label style={etiqueta}>
-                Stock Actual
-                <input type="number" min={0} style={campo} value={nuevoArticulo.stock_actual} placeholder="Ej. 10" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, stock_actual: e.target.value })} />
-              </label>
-              <label style={etiqueta}>
-                Stock Mínimo
-                <input type="number" min={0} style={campo} value={nuevoArticulo.stock_minimo} placeholder="Ej. 2" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, stock_minimo: e.target.value })} />
-              </label>
-            </div>
-            <label style={etiqueta}>
-              Stock Máximo
-              <input type="number" min={0} style={campo} value={nuevoArticulo.stock_maximo} placeholder="Ej. 15" onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, stock_maximo: e.target.value })} />
-            </label>
-            <label style={{ ...etiqueta, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-              <input type="checkbox" checked={nuevoArticulo.validar_limites} onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, validar_limites: e.target.checked })} />
-              Activar alertas de máximos y mínimos para este producto
-            </label>
-          </>,
-          () => void guardarNuevoArticulo(),
-          () => setNuevoArticulo(null),
         )}
     </>
   )

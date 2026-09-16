@@ -11,14 +11,14 @@ import {
   Boxes, 
   Receipt, 
   LayoutDashboard, 
-  Activity, 
   FileSpreadsheet, 
   ShieldCheck, 
   Fuel, 
   ExternalLink,
   ChevronRight,
   Recycle,
-  Tablet
+  Tablet,
+  Package
 } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUiStore } from '../../store/useUiStore'
@@ -80,6 +80,13 @@ export const AppSidebar: React.FC = () => {
           colorBadge: 'bg-[#F2620F]/20 text-[#F2620F]',
         },
         {
+          titulo: 'Pedido de Refacciones',
+          ruta: '/taller/refacciones',
+          icono: ShoppingCart,
+          badge: 'Taller',
+          colorBadge: 'bg-[#F2620F]/20 text-[#F2620F]',
+        },
+        {
           titulo: 'Recepción e Ingreso',
           ruta: '/taller/ingreso',
           icono: PlusCircle,
@@ -113,6 +120,13 @@ export const AppSidebar: React.FC = () => {
           icono: Boxes,
         },
         {
+          titulo: 'Inventario de Almacén',
+          ruta: '/compras/inventario',
+          icono: Package,
+          badge: 'Stock',
+          colorBadge: 'bg-[#C5A059]/20 text-[#C5A059]',
+        },
+        {
           titulo: 'Almacén Yonke ($0)',
           ruta: '/compras/yonke',
           icono: Recycle,
@@ -134,11 +148,6 @@ export const AppSidebar: React.FC = () => {
           titulo: 'Dashboard Ejecutivo',
           ruta: '/dashboard',
           icono: LayoutDashboard,
-        },
-        {
-          titulo: 'Salud de la Flota',
-          ruta: '/admin/salud-flota',
-          icono: Activity,
         },
         {
           titulo: 'Reportes Maestros',

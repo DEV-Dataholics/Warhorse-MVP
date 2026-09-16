@@ -135,4 +135,68 @@ final class ComprasController extends BaseController
 
         return $this->response->setJSON($requisicion);
     }
+
+    public function proveedores(): ResponseInterface
+    {
+        $db = \Config\Database::connect();
+        $builder = $db->table('proveedores')->where('activo', 1)->orderBy('nombre', 'ASC');
+        $proveedores = $builder->get()->getResultArray();
+
+        if (empty($proveedores)) {
+            // Seed inicial estándar si está vacía
+            $iniciales = [
+                ['nombre' => 'Refaccionaria Diésel del Norte', 'rfc' => 'RDN980512AB3', 'activo' => 1],
+                ['nombre' => 'Llantas y Renovados de Chihuahua', 'rfc' => 'LRC120304XY1', 'activo' => 1],
+                ['nombre' => 'Ferretería y Tornillos del Centro', 'rfc' => 'FTC150821M99', 'activo' => 1],
+                ['nombre' => 'Cummins México Distribución', 'rfc' => 'CMD010915TR4', 'activo' => 1],
+                ['nombre' => 'Kenworth Refacciones y Servicio', 'rfc' => 'KRS040711KP8', 'activo' => 1],
+            ];
+            foreach ($iniciales as $ini) {
+                $db->table('proveedores')->insert($ini);
+            }
+            $proveedores = $db->table('proveedores')->where('activo', 1)->orderBy('nombre', 'ASC')->get()->getResultArray();
+        }
+
+        return $this->response->setJSON([
+            'data' => array_map(static fn (array $p): array => [
+                'id'     => (int) $p['id'],
+                'nombre' => (string) $p['nombre'],
+                'rfc'    => $p['rfc'] ?? null,
+                'activo' => (bool) $p['activo'],
+            ], $proveedores),
+        ]);
+    }
+
+    public function crearProveedor(): ResponseInterface
+    {
+        $request = $this->request;
+        $datos   = $request instanceof IncomingRequest ? (array) $request->getJSON(true) : [];
+
+        if (! $this->validateData($datos, [
+            'nombre' => 'required|min_length[3]|max_length[150]',
+            'rfc'    => 'permit_empty|min_length[10]|max_length[15]',
+        ])) {
+            $errores = $this->validator?->getErrors() ?? [];
+            return RespuestasApi::error(422, 'validation', 'Datos de proveedor inválidos.', array_map(static fn (string $e): array => [$e], $errores));
+        }
+
+        $db = \Config\Database::connect();
+        $db->table('proveedores')->insert([
+            'nombre'     => trim((string) $datos['nombre']),
+            'rfc'        => isset($datos['rfc']) && trim((string) $datos['rfc']) !== '' ? strtoupper(trim((string) $datos['rfc'])) : null,
+            'activo'     => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $id = $db->insertID();
+
+        return $this->response->setStatusCode(201)->setJSON([
+            'id'     => $id,
+            'nombre' => trim((string) $datos['nombre']),
+            'rfc'    => $datos['rfc'] ?? null,
+            'message' => 'Proveedor registrado exitosamente.',
+        ]);
+    }
 }
+

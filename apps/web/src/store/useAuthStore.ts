@@ -63,25 +63,54 @@ const PERMISOS_POR_ROL: Record<Rol, string[]> = {
   ],
 }
 
+function obtenerSesionInicial() {
+  try {
+    const raw = localStorage.getItem('warhorse_auth_storage')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.state?.usuario && parsed?.state?.token) {
+        return {
+          usuario: parsed.state.usuario as UsuarioActivo,
+          token: parsed.state.token as string,
+          debeCambiarPassword: Boolean(parsed.state.debeCambiarPassword),
+        }
+      }
+    }
+  } catch {
+    // Ignorar error de parsing
+  }
+  const tokenFallback = typeof window !== 'undefined' ? localStorage.getItem('wh_token') : null
+  return {
+    usuario: null,
+    token: tokenFallback,
+    debeCambiarPassword: false,
+  }
+}
+
+const sesionInicial = obtenerSesionInicial()
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      usuario: null,
-      token: localStorage.getItem('wh_token'),
+      usuario: sesionInicial.usuario,
+      token: sesionInicial.token,
       cargando: false,
       error: null,
-      debeCambiarPassword: false,
+      debeCambiarPassword: sesionInicial.debeCambiarPassword,
 
       iniciarSesion: async (email: string, pass: string) => {
         set({ cargando: true, error: null })
         try {
           const res = await api.login(email, pass)
+          const rolUsuario = (res.usuario.rol.toLowerCase() as Rol) || 'taller'
           const usuarioActivo: UsuarioActivo = {
             id: res.usuario.id,
             nombre: res.usuario.nombre,
             email,
-            rol: (res.usuario.rol.toLowerCase() as Rol) || 'taller',
-            roles: (res.usuario.roles?.map(r => r.toLowerCase() as Rol) || ['taller']),
+            rol: rolUsuario,
+            roles: (res.usuario.roles?.map(r => r.toLowerCase() as Rol) || [rolUsuario]),
+            numeroEmpleado: (res.usuario as { numero_empleado?: string }).numero_empleado || (rolUsuario === 'operador' ? 'EMP-409' : `EMP-${res.usuario.id}`),
+            unidadAsignada: (res.usuario as { unidad_asignada?: string }).unidad_asignada || (rolUsuario === 'operador' ? 'WH-101' : undefined),
           }
 
           set({
@@ -105,11 +134,16 @@ export const useAuthStore = create<AuthState>()(
           email,
           rol,
           roles: [rol],
+          numeroEmpleado: rol === 'operador' ? 'EMP-409' : `EMP-${rol.toUpperCase()}`,
+          unidadAsignada: rol === 'operador' ? 'WH-101' : undefined,
         }
+
+        const devToken = `wh-dev-token-${rol}-${Date.now()}`
+        api.setToken(devToken)
 
         set({
           usuario: usuarioDev,
-          token: `wh-dev-token-${rol}-${Date.now()}`,
+          token: devToken,
           debeCambiarPassword: false,
           cargando: false,
           error: null,
@@ -128,9 +162,12 @@ export const useAuthStore = create<AuthState>()(
           unidadAsignada: unidad || 'WH-101',
         }
 
+        const yardToken = `yard-token-${identificador}`
+        api.setToken(yardToken)
+
         set({
           usuario: operador,
-          token: `yard-token-${identificador}`,
+          token: yardToken,
           debeCambiarPassword: false,
           cargando: false,
           error: null,
@@ -146,7 +183,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // Si el servidor falla, cerramos de todas formas localmente
         } finally {
-          localStorage.removeItem('wh_token')
+          api.setToken(null)
           set({
             usuario: null,
             token: null,
@@ -176,17 +213,24 @@ export const useAuthStore = create<AuthState>()(
             },
             debeCambiarPassword: datos.debe_cambiar_password,
           })
-        } catch {
-          // Token vencido o revocado
-          set({ usuario: null, token: null })
-          localStorage.removeItem('wh_token')
+        } catch (err: unknown) {
+          // Token vencido o revocado ÚNICAMENTE si el servidor respondió 401 explícito
+          if (err instanceof api.ApiError && err.status === 401) {
+            set({ usuario: null, token: null })
+            api.setToken(null)
+          }
+          // Si es un error de red o timeout transitorio, conservamos la sesión local
         }
       },
 
       tienePermiso: (permiso: string) => {
         const { usuario } = get()
         if (!usuario) return false
-        if (usuario.rol === 'admin') return true
+        const rolLower = (usuario.rol || '').toLowerCase()
+        const listaRoles = (usuario.roles || []).map(r => String(r).toLowerCase())
+        if (rolLower === 'admin' || rolLower.includes('admin') || rolLower === 'direccion' || listaRoles.includes('admin') || listaRoles.includes('direccion')) {
+          return true
+        }
 
         const permisos = PERMISOS_POR_ROL[usuario.rol] || []
         return permisos.includes('*') || permisos.includes(permiso)
@@ -195,8 +239,16 @@ export const useAuthStore = create<AuthState>()(
       tieneRol: (rolesPermitidos: Rol[]) => {
         const { usuario } = get()
         if (!usuario) return false
-        if (usuario.rol === 'admin') return true
-        return rolesPermitidos.includes(usuario.rol)
+        const rolLower = (usuario.rol || '').toLowerCase()
+        const listaRoles = (usuario.roles || []).map(r => String(r).toLowerCase())
+        // El rol admin / direccion tiene acceso total a cualquier ruta
+        if (rolLower === 'admin' || rolLower.includes('admin') || rolLower === 'direccion' || listaRoles.includes('admin') || listaRoles.includes('direccion')) {
+          return true
+        }
+        return rolesPermitidos.some(rp => {
+          const rpLower = rp.toLowerCase()
+          return rolLower === rpLower || rolLower.includes(rpLower) || listaRoles.includes(rpLower)
+        })
       },
     }),
     {

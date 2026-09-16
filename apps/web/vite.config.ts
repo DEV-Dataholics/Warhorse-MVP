@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
-    // Proxy al backend local de Laragon / CodeIgniter 4
+    // Proxy al backend local de CodeIgniter 4 en puerto 8085
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8085',
         changeOrigin: true,
       },
     },

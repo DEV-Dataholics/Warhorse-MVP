@@ -2,11 +2,43 @@
 // reales: auth (S1), unidades (S2), requisiciones (S3), compras/taller (S4)
 // y diésel/dashboard/ficha (S5). Las vistas importan SOLO este módulo.
 import type { EstadoRequisicion, EstadoUnidad, Origen, Rol, TipoUnidad, Urgencia } from './types'
+export type { EstadoRequisicion, EstadoUnidad, Origen, Rol, TipoUnidad, Urgencia }
 
 const BASE = '/api/v1'
 
 // El token de acceso vive en memoria del SPA (doc 04 §3.5), nunca en localStorage.
 let tokenActual: string | null = localStorage.getItem('wh_token')
+
+export function setToken(token: string | null): void {
+  tokenActual = token
+  if (token) {
+    localStorage.setItem('wh_token', token)
+  } else {
+    localStorage.removeItem('wh_token')
+  }
+}
+
+export function getToken(): string | null {
+  if (tokenActual) return tokenActual
+  const local = localStorage.getItem('wh_token')
+  if (local) {
+    tokenActual = local
+    return local
+  }
+  try {
+    const raw = localStorage.getItem('warhorse_auth_storage')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.state?.token) {
+        tokenActual = parsed.state.token
+        return parsed.state.token
+      }
+    }
+  } catch {
+    // Ignorar error de parsing
+  }
+  return null
+}
 
 export class ApiError extends Error {
   constructor(
@@ -21,22 +53,28 @@ export class ApiError extends Error {
 }
 
 async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+  const token = getToken()
   const headers: Record<string, string> = {
     // Con FormData el navegador fija el boundary del multipart
     ...(opciones.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(opciones.headers as Record<string, string> | undefined),
   }
-  if (tokenActual) headers.Authorization = `Bearer ${tokenActual}`
+  if (token) headers.Authorization = `Bearer ${token}`
 
   const respuesta = await fetch(BASE + ruta, { ...opciones, headers })
 
   if (respuesta.status === 204) return undefined as T
 
-  const cuerpo: any = await respuesta.json().catch(() => null)
-  const isRealError = cuerpo && typeof cuerpo === 'object' && 'real_status' in cuerpo && cuerpo.real_status >= 400
+  const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null
+  const isRealError =
+    Boolean(cuerpo &&
+    typeof cuerpo === 'object' &&
+    'real_status' in cuerpo &&
+    typeof cuerpo.real_status === 'number' &&
+    cuerpo.real_status >= 400)
 
   if (!respuesta.ok || isRealError) {
-    const status = isRealError ? cuerpo.real_status : respuesta.status
+    const status = isRealError ? (cuerpo?.real_status as number) : respuesta.status
     const err = (cuerpo ?? {}) as { error?: string; message?: string; fields?: Record<string, string[]> }
     throw new ApiError(
       status,
@@ -89,8 +127,7 @@ export async function login(email: string, password: string): Promise<SesionLogi
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
-  tokenActual = sesion.token
-    localStorage.setItem('wh_token', tokenActual)
+  setToken(sesion.token)
   return sesion
 }
 
@@ -98,8 +135,7 @@ export async function logout(): Promise<void> {
   try {
     await pedir<void>('/auth/logout', { method: 'POST' })
   } finally {
-    tokenActual = null
-      localStorage.removeItem('wh_token')
+    setToken(null)
   }
 }
 
@@ -108,7 +144,7 @@ export function me(): Promise<Yo> {
 }
 
 export function haySesion(): boolean {
-  return tokenActual !== null
+  return getToken() !== null
 }
 
 // Cambio de contraseña propio (alta sin correo): la persona define la suya
@@ -200,13 +236,14 @@ export interface RequisicionApi {
   numero_factura?: string | null
   orden_trabajo_id?: number | null
   folio?: string | null
+  proveedor?: string | null
 }
 
 export interface NuevaRequisicionApi {
   unidad_destino_id: number | null
   origen: Origen
-  unidad_donante_id: number | null
-  pieza_catalogo_id: number | null
+  unidad_donante_id?: number | null
+  pieza_catalogo_id?: number | null
   descripcion_pieza: string
   cantidad?: number
   numero_parte: string | null
@@ -267,9 +304,12 @@ export function avanzarEstado(
     estado: EstadoRequisicion
     costo_real?: number
     numero_factura?: string
+    proveedor?: string
+    es_caja_chica?: boolean
     archivo_cotizacion?: File | null
     archivo_factura?: File | null
     origen_refaccion?: string
+    justificacion?: string
   },
 ): Promise<RequisicionApi> {
   const hasFiles = cambio.archivo_cotizacion || cambio.archivo_factura
@@ -278,6 +318,8 @@ export function avanzarEstado(
     fd.set('estado', cambio.estado)
     if (cambio.costo_real !== undefined) fd.set('costo_real', String(cambio.costo_real))
     if (cambio.numero_factura !== undefined) fd.set('numero_factura', cambio.numero_factura)
+    if (cambio.proveedor) fd.set('proveedor', cambio.proveedor)
+    if (cambio.es_caja_chica !== undefined) fd.set('es_caja_chica', cambio.es_caja_chica ? '1' : '0')
     if (cambio.archivo_cotizacion) fd.set('archivo_cotizacion', cambio.archivo_cotizacion)
     if (cambio.archivo_factura) fd.set('archivo_factura', cambio.archivo_factura)
     return pedir<RequisicionApi>(`/compras/requisiciones/${id}/estado`, {
@@ -536,6 +578,7 @@ export interface ArticuloAlmacenApi {
   stock_maximo: number | null
   stock_actual: number
   validar_limites: boolean
+  unidad_donante_id?: number | null
 }
 
 export function eliminarRequisicion(id: number): Promise<void> {
@@ -559,6 +602,7 @@ export function actualizarArticuloAlmacen(
 
 export function crearArticuloAlmacen(datos: {
   nombre_normalizado: string
+  categoria?: string
   numero_parte?: string | null
   precio_referencia: number
   stock_minimo?: number | null
@@ -689,9 +733,9 @@ export type PiezaYonkeeApi = PiezaYonkeApi
 
 export async function getCompras(): Promise<CompraApi[]> {
   try {
-    const r = await pedir<{ data: any[] }>('/compras/requisiciones')
+    const r = await pedir<{ data: Record<string, unknown>[] }>('/compras/requisiciones')
     return (r.data || []).map(item => {
-      const costoRaw = item.costo_real ?? item.costo_estimado ?? item.monto ?? 0
+      const costoRaw = (item.costo_real ?? item.costo_estimado ?? item.monto ?? 0) as string | number
       const costoNum = typeof costoRaw === 'string' ? parseFloat(costoRaw) : Number(costoRaw)
       const montoFinal = isNaN(costoNum) ? 0 : costoNum
 
@@ -707,7 +751,12 @@ export async function getCompras(): Promise<CompraApi[]> {
         descripcion: (item.descripcion_pieza || item.descripcion || 'Refacción o servicio de mantenimiento') as string,
         es_caja_chica: Boolean(item.es_caja_chica),
         estado: (item.estado as CompraApi['estado']) || 'Pendiente',
-        fecha: (item.fecha_solicitud || item.fecha || item.created_at?.substring(0, 10) || new Date().toISOString().substring(0, 10)) as string,
+        fecha: (
+          (typeof item.fecha_solicitud === 'string' ? item.fecha_solicitud : '') ||
+          (typeof item.fecha === 'string' ? item.fecha : '') ||
+          (typeof item.created_at === 'string' ? item.created_at.substring(0, 10) : '') ||
+          new Date().toISOString().substring(0, 10)
+        ),
       }
     })
   } catch {
@@ -780,6 +829,55 @@ export const getInventarioYonkee = getInventarioYonke
 export const crearPiezaYonkee = crearPiezaYonke
 export const asignarPiezaYonkee = asignarPiezaYonke
 
+export interface ProveedorApi {
+  id: number
+  nombre: string
+  rfc?: string | null
+  activo: boolean
+}
 
+export async function getProveedores(): Promise<ProveedorApi[]> {
+  try {
+    const r = await pedir<{ data: ProveedorApi[] }>('/compras/proveedores')
+    return r.data
+  } catch {
+    return [
+      { id: 1, nombre: 'Refaccionaria Diésel del Norte', rfc: 'RDN980512AB3', activo: true },
+      { id: 2, nombre: 'Llantas y Renovados de Chihuahua', rfc: 'LRC120304XY1', activo: true },
+      { id: 3, nombre: 'Ferretería y Tornillos del Centro', rfc: 'FTC150821M99', activo: true },
+      { id: 4, nombre: 'Cummins México Distribución', rfc: 'CMD010915TR4', activo: true },
+      { id: 5, nombre: 'Kenworth Refacciones y Servicio', rfc: 'KRS040711KP8', activo: true },
+    ]
+  }
+}
 
+export async function crearProveedor(datos: { nombre: string; rfc?: string }): Promise<ProveedorApi> {
+  return pedir<ProveedorApi>('/compras/proveedores', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
 
+export async function tomarInventarioOT(
+  otId: number,
+  datos: { articulo_id: number; cantidad: number }
+): Promise<{ message: string; materiales: Array<{ pieza_id: number; nombre: string; cantidad: number; costo_unitario: number; costo_total: number }> }> {
+  return pedir(`/taller/reparaciones/${otId}/tomar-inventario`, {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function crearInspeccionPatio(datos: {
+  operador_id: number
+  unidad_id: number
+  kilometraje?: number
+  nivel_combustible?: number
+  tiene_anomalias: boolean
+  datos_json: unknown
+}): Promise<{ id: number; mensaje: string }> {
+  return pedir('/operadores/inspecciones', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}

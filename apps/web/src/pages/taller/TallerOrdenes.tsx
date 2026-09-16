@@ -16,7 +16,8 @@ import {
   Camera,
   X,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  ShoppingCart
 } from 'lucide-react'
 import { 
   getOrdenesTrabajo, 
@@ -213,6 +214,9 @@ export const TallerOrdenes: React.FC = () => {
         criticidad: tieneCritico ? 'Crítico' : 'Media',
         diagnostico: `[Inspección Patio ${insp.folio} - Operador ${insp.operador_nombre}]: ${fallas}`,
         folioInspeccion: insp.folio,
+        operadorNombre: insp.operador_nombre,
+        tipoInspeccion: insp.tipo_inspeccion,
+        itemsDefectuosos: insp.items.filter(i => i.estado !== 'Bueno'),
       },
     })
   }
@@ -522,6 +526,18 @@ export const TallerOrdenes: React.FC = () => {
                                 <span>Ver OT</span>
                               </button>
 
+                              {(ot.estado === 'Activa' || ot.estado === 'En Proceso') && (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/taller/refacciones?ot_id=${ot.id}`)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-[#F2620F]/40 bg-[#F2620F]/15 px-2 py-1 text-xs font-semibold text-[#F2620F] hover:bg-[#F2620F] hover:text-[#16191E] transition-all cursor-pointer"
+                                  title="Solicitar Refacciones para esta OT"
+                                >
+                                  <ShoppingCart className="h-3 w-3" />
+                                  <span>Piezas</span>
+                                </button>
+                              )}
+
                               {ot.estado === 'Activa' && (
                                 <button
                                   type="button"
@@ -689,7 +705,7 @@ export const TallerOrdenes: React.FC = () => {
                                 {insp.tipo_operacion}
                               </span>
                               <span className="font-mono text-xs text-[#C5A059] font-bold">
-                                {insp.kilometraje.toLocaleString()} KM
+                                {insp.tipo_vehiculo === 'caja' ? 'Traila / Semirremolque' : `${(insp.kilometraje || 0).toLocaleString()} KM`}
                               </span>
                             </div>
                             <div className="text-[11px] text-[#B8B2A6] mt-0.5">

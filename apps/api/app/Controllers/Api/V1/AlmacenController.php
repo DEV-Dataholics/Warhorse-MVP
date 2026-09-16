@@ -28,6 +28,7 @@ final class AlmacenController extends BaseController
                 'stock_maximo'       => $a['stock_maximo'] === null ? null : (int) $a['stock_maximo'],
                 'stock_actual'       => isset($a['stock_actual']) ? (int) $a['stock_actual'] : 0,
                 'validar_limites'    => isset($a['validar_limites']) ? (bool) $a['validar_limites'] : false,
+                'unidad_donante_id'  => isset($a['unidad_donante_id']) && $a['unidad_donante_id'] !== null ? (int) $a['unidad_donante_id'] : null,
             ], $articulos),
         ]);
     }

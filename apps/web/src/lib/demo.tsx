@@ -9,7 +9,6 @@ import {
 import { useNavigate } from 'react-router'
 import * as api from './api'
 import type { UnidadApi, Yo } from './api'
-import type { Rol } from './types'
 
 // Estado global del demo — espejo del `state` del componente del demo
 // validado (view/rol/selTractoId/reqsExtra/estadoOverrides/usuarios/permisos).
@@ -94,7 +93,7 @@ export function rutaDeLanding(landing: string): string {
   return rutaDeVista[landing] ?? '/catalogo'
 }
 
-const etiquetaRol: Record<Rol, string> = {
+const etiquetaRol: Record<string, string> = {
   admin: 'Admin',
   taller: 'Taller',
   compras: 'Compras',

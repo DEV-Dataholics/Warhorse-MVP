@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import Camion from '../components/Camion'
-import { getFicha, type FichaApi } from '../lib/api'
+import { getFicha, getUnidades, type FichaApi, type UnidadApi } from '../lib/api'
 import { useDemo } from '../lib/demo'
 import { badge, card, critStyle, estadoUnidadColors, FD, fmt, h2Titulo, h3Titulo, tdCell, thCell, theadRow } from '../lib/estilos'
 
@@ -10,16 +10,30 @@ export default function Ficha() {
   const { unidades } = useDemo()
   const navigate = useNavigate()
   const [ficha, setFicha] = useState<FichaApi | null>(null)
+  const [unidadesLocales, setUnidadesLocales] = useState<UnidadApi[]>([])
 
-  // La URL trae el id de flota (WH125); el catálogo vivo resuelve el id numérico
-  const unidad = unidades.find((u) => u.id_unidad === id)
+  const listaEfectiva = unidades && unidades.length > 0 ? unidades : unidadesLocales
+  // La URL trae el id de flota (WH125) o el id numérico; el catálogo vivo resuelve la unidad
+  const unidad = listaEfectiva.find((u) => u.id_unidad === id || String(u.id) === id)
+
+  useEffect(() => {
+    if (!unidades || unidades.length === 0) {
+      getUnidades().then(setUnidadesLocales).catch(() => {})
+    }
+  }, [unidades])
 
   useEffect(() => {
     if (!unidad) return
     void getFicha(unidad.id).then(setFicha)
   }, [unidad])
 
-  if (!ficha) return null
+  if (!ficha) {
+    return (
+      <div className="p-8 text-center text-xs text-[#B8B2A6] animate-pulse font-['Barlow_Condensed'] uppercase tracking-wider">
+        Cargando expediente y ficha técnica de la unidad...
+      </div>
+    )
+  }
 
   const ft = ficha.unidad
   const esYonke = ft.estado === 'Yonke'

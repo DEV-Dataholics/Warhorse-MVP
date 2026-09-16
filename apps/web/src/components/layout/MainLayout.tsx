@@ -14,8 +14,11 @@ export const MainLayout: React.FC = () => {
       navigate('/login', { replace: true })
       return
     }
-    verificarSesion()
-  }, [token, usuario, navigate, verificarSesion])
+    if (token) {
+      verificarSesion()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   if (!token && !usuario) {
     return null

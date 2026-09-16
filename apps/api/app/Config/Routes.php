@@ -72,11 +72,13 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     // ciclo lo avanza SOLO compras (doc 05 §6)
     $routes->get('compras/requisiciones', 'ComprasController::index', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
     $routes->get('compras/buscar', 'ComprasController::buscar', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
+    $routes->get('compras/proveedores', 'ComprasController::proveedores', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
+    $routes->post('compras/proveedores', 'ComprasController::crearProveedor', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
     $routes->patch('compras/requisiciones/(:num)/estado', 'ComprasController::estado/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
     $routes->post('compras/requisiciones/(:num)/revertir', 'ComprasController::revertir/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
 
     // Almacén / Inventario (REQ-001)
-    $routes->get('almacen/articulos', 'AlmacenController::articulos', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'password-vigente']]);
+    $routes->get('almacen/articulos', 'AlmacenController::articulos', ['filter' => ['cors', 'api-auth', 'rbac:taller,compras,admin', 'password-vigente']]);
     $routes->post('almacen/articulos', 'AlmacenController::crear', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
     $routes->patch('almacen/articulos/(:num)', 'AlmacenController::actualizar/$1', ['filter' => ['cors', 'api-auth', 'rbac:compras,admin', 'throttle-mut', 'password-vigente']]);
 

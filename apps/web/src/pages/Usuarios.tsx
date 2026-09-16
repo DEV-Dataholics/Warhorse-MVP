@@ -7,8 +7,8 @@ import { useDemo } from '../lib/demo'
 import { badge, card, FD, h2Titulo, h3Titulo, subTitulo, tdCell, thCell, theadRow } from '../lib/estilos'
 import type { Rol } from '../lib/types'
 
-const rolNombres: Record<Rol, string> = { admin: 'Dirección (Admin)', taller: 'Taller', compras: 'Compras', diesel: 'Control de Diésel', operador: 'Operador (Patio)' }
-const avatarColors: Record<Rol, string> = { admin: '#16191E', taller: '#C5A059', compras: '#3FA65C', diesel: '#8A6D1A', operador: '#F2620F' }
+const rolNombres: Record<string, string> = { admin: 'Dirección (Admin)', taller: 'Taller', compras: 'Compras', diesel: 'Control de Diésel', operador: 'Operador (Patio)' }
+const avatarColors: Record<string, string> = { admin: '#16191E', taller: '#C5A059', compras: '#3FA65C', diesel: '#8A6D1A', operador: '#F2620F' }
 const roles = Object.keys(rolNombres) as Rol[]
 
 const modulos = [

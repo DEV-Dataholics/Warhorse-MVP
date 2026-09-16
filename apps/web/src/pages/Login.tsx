@@ -307,7 +307,7 @@ export const Login: React.FC = () => {
                       type="text"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      placeholder="ejemplo@warhorse.com"
+                      placeholder="Usuario o correo electrónico"
                       className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] py-2.5 pl-10 pr-3 text-xs text-white placeholder-[#B8B2A6]/50 focus:border-[#F2620F] focus:outline-none focus:ring-1 focus:ring-[#F2620F]"
                     />
                   </div>
@@ -323,7 +323,7 @@ export const Login: React.FC = () => {
                       type="password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="Contraseña"
                       className="w-full rounded-xl border border-[rgba(243,239,231,0.15)] bg-[#1C1C1C] py-2.5 pl-10 pr-3 text-xs text-white placeholder-[#B8B2A6]/50 focus:border-[#F2620F] focus:outline-none focus:ring-1 focus:ring-[#F2620F]"
                     />
                   </div>
@@ -338,6 +338,79 @@ export const Login: React.FC = () => {
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </form>
+
+              {/* Accesos Rápidos de Prueba (1 Clic) */}
+              <div className="mt-5 pt-4 border-t border-[rgba(243,239,231,0.1)] space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-[#B8B2A6] uppercase tracking-wider font-['Barlow_Condensed']">
+                  <span>Accesos Rápidos de Prueba (1 Clic)</span>
+                  <span className="text-[#C5A059]">Pass: warhorse-demo</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('direccion@warhorse.mx')
+                      setPassword('warhorse-demo')
+                    }}
+                    className="flex flex-col items-start p-2 rounded-xl bg-[#1C1C1C] border border-[rgba(243,239,231,0.1)] hover:border-[#C5A059] transition-all text-left cursor-pointer"
+                  >
+                    <span className="font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#C5A059]">
+                      Dirección (Admin)
+                    </span>
+                    <span className="text-[10px] text-[#B8B2A6] truncate w-full">
+                      direccion@warhorse.mx
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('montzay@warhorse.mx')
+                      setPassword('warhorse-demo')
+                    }}
+                    className="flex flex-col items-start p-2 rounded-xl bg-[#1C1C1C] border border-[rgba(243,239,231,0.1)] hover:border-[#F2620F] transition-all text-left cursor-pointer"
+                  >
+                    <span className="font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#F2620F]">
+                      Compras (Montzay)
+                    </span>
+                    <span className="text-[10px] text-[#B8B2A6] truncate w-full">
+                      montzay@warhorse.mx
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('edgar@warhorse.mx')
+                      setPassword('warhorse-demo')
+                    }}
+                    className="flex flex-col items-start p-2 rounded-xl bg-[#1C1C1C] border border-[rgba(243,239,231,0.1)] hover:border-[#3FA65C] transition-all text-left cursor-pointer"
+                  >
+                    <span className="font-['Barlow_Condensed'] text-xs font-bold uppercase text-[#3FA65C]">
+                      Taller (Edgar)
+                    </span>
+                    <span className="text-[10px] text-[#B8B2A6] truncate w-full">
+                      edgar@warhorse.mx
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('greisy@warhorse.mx')
+                      setPassword('warhorse-demo')
+                    }}
+                    className="flex flex-col items-start p-2 rounded-xl bg-[#1C1C1C] border border-[rgba(243,239,231,0.1)] hover:border-blue-400 transition-all text-left cursor-pointer"
+                  >
+                    <span className="font-['Barlow_Condensed'] text-xs font-bold uppercase text-blue-400">
+                      Diésel (Greisy)
+                    </span>
+                    <span className="text-[10px] text-[#B8B2A6] truncate w-full">
+                      greisy@warhorse.mx
+                    </span>
+                  </button>
+                </div>
+              </div>
 
             </div>
           )}

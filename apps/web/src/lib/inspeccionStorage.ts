@@ -39,6 +39,65 @@ export async function eliminarBorradorLocal(operadorId: string): Promise<void> {
 }
 
 /**
+ * Obtiene de forma síncrona el folio con formato histórico INS-YYYY-00001.
+ */
+export function obtenerFolioConsecutivoSincrono(): string {
+  const anio = new Date().getFullYear()
+  const clave = `wh_consecutivo_inspeccion_${anio}`
+  const actual = parseInt(localStorage.getItem(clave) || '0', 10)
+  const siguiente = actual + 1
+  return `INS-${anio}-${String(siguiente).padStart(5, '0')}`
+}
+
+/**
+ * Consulta el historial persistido (IndexedDB y localStorage) para determinar
+ * con total precisión el siguiente folio correlativo histórico (ej. INS-2026-00001).
+ */
+export async function generarSiguienteFolioInspeccion(): Promise<string> {
+  const anio = new Date().getFullYear()
+  const clave = `wh_consecutivo_inspeccion_${anio}`
+  let maxNum = parseInt(localStorage.getItem(clave) || '0', 10)
+
+  try {
+    const historial = await obtenerHistorialLocal()
+    const regex = new RegExp(`^INS-?${anio}-?(\\d+)$`, 'i')
+    for (const item of historial) {
+      if (item.folio) {
+        const match = item.folio.match(regex)
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10)
+          if (num > maxNum) {
+            maxNum = num
+          }
+        }
+      }
+    }
+  } catch {
+    // Modo resiliente
+  }
+
+  const siguiente = maxNum + 1
+  return `INS-${anio}-${String(siguiente).padStart(5, '0')}`
+}
+
+/**
+ * Registra el folio que se acaba de emitir para avanzar el consecutivo histórico.
+ */
+export function registrarFolioEmitido(folio: string): void {
+  const anio = new Date().getFullYear()
+  const regex = new RegExp(`^INS-?${anio}-?(\\d+)$`, 'i')
+  const match = folio.match(regex)
+  if (match && match[1]) {
+    const num = parseInt(match[1], 10)
+    const clave = `wh_consecutivo_inspeccion_${anio}`
+    const actual = parseInt(localStorage.getItem(clave) || '0', 10)
+    if (num > actual) {
+      localStorage.setItem(clave, String(num))
+    }
+  }
+}
+
+/**
  * Guarda una orden de inspección finalizada en el registro local permanente de IndexedDB.
  */
 export async function guardarInspeccionFinalizada(
@@ -48,6 +107,7 @@ export async function guardarInspeccionFinalizada(
   // Agregar al inicio para orden cronológico inverso
   const nuevaLista = [inspeccion, ...listaActual.filter(i => i.folio !== inspeccion.folio)]
   await set(PREFIJO_HISTORIAL, nuevaLista)
+  registrarFolioEmitido(inspeccion.folio)
 }
 
 /**
@@ -61,7 +121,22 @@ export async function obtenerHistorialLocal(): Promise<OrdenInspeccionForm[]> {
     return []
   }
   const lista: OrdenInspeccionForm[] = (await get(PREFIJO_HISTORIAL)) || []
-  return lista
+
+  // Sanitización de integridad: Corregir asignación errónea de operador_id si el nombre era de Dirección WarHorse
+  let huboCorreccion = false
+  const listaSaneada = lista.map(item => {
+    if (item.operador_nombre === 'Dirección WarHorse' && item.operador_id === 'EMP-409') {
+      huboCorreccion = true
+      return { ...item, operador_id: 'EMP-ADMIN' }
+    }
+    return item
+  })
+
+  if (huboCorreccion) {
+    await set(PREFIJO_HISTORIAL, listaSaneada)
+  }
+
+  return listaSaneada
 }
 
 /**

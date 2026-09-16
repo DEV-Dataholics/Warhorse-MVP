@@ -17,9 +17,9 @@ export type EstadoUnidad =
 
 export type TipoUnidad = 'Tractor' | 'Caja' | 'Thermo' | 'Servicio'
 
-export type Origen = 'Compra' | 'Yonke' | 'Inventario'
+export type Origen = 'Compra' | 'Yonke' | 'Inventario' | 'Nuevo'
 
-export type Urgencia = 'Bajo' | 'Medio' | 'Crítico' | 'Inmediato' | 'Rápida' | 'Media'
+export type Urgencia = 'Bajo' | 'Medio' | 'Crítico' | 'Inmediato' | 'Rápida' | 'Media' | 'Crítica'
 
 export type EstadoRequisicion = 
   | 'Solicitado' 

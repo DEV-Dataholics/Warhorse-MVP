@@ -20,5 +20,5 @@ export const montarApp = (rutaInicial = '/login', extra?: string) =>
 export const entrarComo = async (email: string, password = 'warhorse-demo') => {
   await userEvent.type(await screen.findByPlaceholderText(/usuario o correo/i), email)
   await userEvent.type(screen.getByPlaceholderText(/contraseña/i), password)
-  await userEvent.click(screen.getByRole('button', { name: /arrancar/i }))
+  await userEvent.click(screen.getByRole('button', { name: /(arrancar|iniciar sesión)/i }))
 }

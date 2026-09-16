@@ -58,12 +58,27 @@ export const PatioHistorial: React.FC = () => {
 
   // 1. Filtrado de Privacidad RBAC (Historial Propio obligatorio para operadores)
   const inspeccionesBase = inspecciones.filter(item => {
+    // Los supervisores pueden alternar entre su historial propio o toda la flota
     if (esSupervisor && verTodaFlota) return true
-    if (!usuario) return true
-    return (
-      (usuario.numeroEmpleado && item.operador_id === usuario.numeroEmpleado) ||
-      (usuario.nombre && item.operador_nombre.toLowerCase() === usuario.nombre.toLowerCase())
-    )
+    if (!usuario) return false
+
+    const userNum = (usuario.numeroEmpleado || '').trim().toLowerCase()
+    const userName = (usuario.nombre || '').trim().toLowerCase()
+
+    const itemOpId = (item.operador_id || '').trim().toLowerCase()
+    const itemOpNombre = (item.operador_nombre || '').trim().toLowerCase()
+
+    // REGLA DE SEGURIDAD ESTRICTA:
+    // Si el nombre del operador en el documento no coincide con el usuario autenticado, NO pertenece a su historial personal
+    if (userName && itemOpNombre && userName !== itemOpNombre) {
+      return false
+    }
+
+    // Pertenencia validada por coincidencia estricta de nombre o número de empleado
+    const coincideNombre = Boolean(userName && itemOpNombre && userName === itemOpNombre)
+    const coincideId = Boolean(userNum && itemOpId && userNum === itemOpId)
+
+    return coincideNombre || coincideId
   })
 
   // 2. Filtrado reactivo por texto y estado sobre las inspecciones autorizadas
@@ -368,7 +383,7 @@ export const PatioHistorial: React.FC = () => {
                           <div className="flex items-center gap-1.5 text-[#B8B2A6]">
                             <Gauge className="h-3.5 w-3.5 text-[#F2620F]" />
                             <span className="font-['Barlow_Condensed'] font-bold text-white tabular-nums">
-                              {item.kilometraje.toLocaleString()} KM
+                              {item.tipo_vehiculo === 'caja' ? 'N/A (Traila)' : `${(item.kilometraje || 0).toLocaleString()} KM`}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-[#B8B2A6]">
@@ -495,7 +510,7 @@ export const PatioHistorial: React.FC = () => {
                           <div className="text-[10px] text-[#B8B2A6]">{item.licencia}</div>
                         </td>
                         <td className="px-4 py-3 font-['Barlow_Condensed'] font-bold tabular-nums text-white">
-                          {item.kilometraje.toLocaleString()} KM
+                          {item.tipo_vehiculo === 'caja' ? 'N/A (Traila)' : `${(item.kilometraje || 0).toLocaleString()} KM`}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`rounded px-2 py-0.5 font-['Barlow_Condensed'] text-[11px] font-bold ${badgeColor}`}>

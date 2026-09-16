@@ -40,7 +40,21 @@ class ApiAuthFilter implements FilterInterface
         }
 
         $shield = $resultado->extraInfo();
-        $email  = $shield instanceof User ? $shield->email : null;
+        $email  = null;
+        if ($shield instanceof User) {
+            // Asegura que las identidades estén cargadas en la entidad User de Shield
+            $shield->getIdentities();
+            $email = $shield->email;
+            if (! is_string($email) || $email === '') {
+                foreach ($shield->getIdentities() as $ident) {
+                    if ($ident->type === 'email_password' && is_string($ident->secret) && $ident->secret !== '') {
+                        $email = $ident->secret;
+                        break;
+                    }
+                }
+            }
+        }
+
         if (! is_string($email) || $email === '') {
             return RespuestasApi::error(401, 'unauthenticated', 'No autenticado.');
         }

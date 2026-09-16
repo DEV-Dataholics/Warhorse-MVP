@@ -18,9 +18,11 @@ import PatioHistorial from './pages/patio/PatioHistorial'
 import TallerOrdenes from './pages/taller/TallerOrdenes'
 import TallerNuevaOT from './pages/taller/TallerNuevaOT'
 import TallerPersonal from './pages/taller/TallerPersonal'
+import TallerRefacciones from './pages/taller/TallerRefacciones'
 import ComprasCarrito from './pages/compras/ComprasCarrito'
 import ComprasCola from './pages/compras/ComprasCola'
 import ComprasYonke from './pages/compras/ComprasYonke'
+import { ComprasInventario } from './pages/compras/ComprasInventario'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminReportes from './pages/admin/AdminReportes'
 
@@ -39,6 +41,15 @@ function RutaProtegida({
 
   if (!token && !usuario) {
     return <Navigate to="/login" replace />
+  }
+
+  // Si hay token pero el usuario aún se está resolviendo, esperar sin redirigir prematuramente
+  if (token && !usuario) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0f0f10]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#C5A059] border-t-transparent" />
+      </div>
+    )
   }
 
   // Si tiene un rol restringido y no está en la lista permitida
@@ -104,6 +115,14 @@ export function AppRoutes() {
           element={
             <RutaProtegida rolesPermitidos={['taller', 'admin']}>
               <TallerOrdenes />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/taller/refacciones"
+          element={
+            <RutaProtegida rolesPermitidos={['taller', 'admin']}>
+              <TallerRefacciones />
             </RutaProtegida>
           }
         />
@@ -177,7 +196,7 @@ export function AppRoutes() {
           path="/compras/inventario"
           element={
             <RutaProtegida rolesPermitidos={['compras', 'admin']}>
-              <ComprasYonke />
+              <ComprasInventario />
             </RutaProtegida>
           }
         />
@@ -217,11 +236,7 @@ export function AppRoutes() {
         />
         <Route
           path="/admin/salud-flota"
-          element={
-            <RutaProtegida rolesPermitidos={['admin']}>
-              <AdminDashboard />
-            </RutaProtegida>
-          }
+          element={<Navigate to="/dashboard" replace />}
         />
         <Route
           path="/admin/reportes"

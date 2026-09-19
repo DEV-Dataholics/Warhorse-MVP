@@ -39,6 +39,15 @@ class UnidadModel extends Model
     }
 
     /**
+     * Obtiene el odometro actual de la unidad (TiRA Level 3 Remediation).
+     */
+    public function getOdometro(int $id): ?string
+    {
+        $fila = $this->find($id);
+        return $fila ? (string) ($fila['odometro'] ?? '0') : null;
+    }
+
+    /**
      * Listado con el consolidado adjunto (lectura O(1), doc 03 §5).
      *
      * @return array{data: list<array<string, mixed>>, total: int}

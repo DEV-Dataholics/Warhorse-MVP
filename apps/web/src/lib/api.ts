@@ -407,9 +407,13 @@ export function registrarCarga(datos: {
   fecha: string
   litros: number
   costo_total: number
-  km_recorridos: number
+  km_recorridos?: number
 }): Promise<CargaDieselApi> {
-  return pedir<CargaDieselApi>('/diesel', { method: 'POST', body: JSON.stringify(datos) })
+  const payload = {
+    ...datos,
+    km_recorridos: datos.km_recorridos ?? 0,
+  }
+  return pedir<CargaDieselApi>('/diesel', { method: 'POST', body: JSON.stringify(payload) })
 }
 
 export interface CargaExternaApi {

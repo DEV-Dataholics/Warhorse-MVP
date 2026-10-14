@@ -115,6 +115,67 @@ function RendimientoChart({ cargas, unidad }: { cargas: CargaDieselApi[], unidad
   )
 }
 
+const PRECIO_REFERENCIA_DIESEL = 24.50
+
+interface SemanaInfo {
+  semanaKey: string
+  semanaNum: number
+  anio: number
+  etiqueta: string
+  rango: string
+}
+
+function getSemanaInfo(fechaStr: string): SemanaInfo {
+  if (!fechaStr) return { semanaKey: 'N/A', semanaNum: 0, anio: 2026, etiqueta: 'Sin fecha', rango: '—' }
+  const d = new Date(fechaStr + 'T00:00:00')
+  if (isNaN(d.getTime())) return { semanaKey: 'N/A', semanaNum: 0, anio: 2026, etiqueta: 'Fecha inválida', rango: '—' }
+
+  const target = new Date(d.valueOf())
+  const dayNr = (d.getDay() + 6) % 7 // Lunes = 0, Domingo = 6
+  target.setDate(target.getDate() - dayNr + 3)
+  const firstThursday = target.valueOf()
+  target.setMonth(0, 1)
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7)
+  }
+  const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000)
+  const year = d.getFullYear()
+
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - dayNr)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+
+  const fmtFecha = (date: Date) => {
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const dia = String(date.getDate()).padStart(2, '0')
+    return `${dia}/${m}`
+  }
+
+  return {
+    semanaKey: `${year}-W${String(weekNum).padStart(2, '0')}`,
+    semanaNum: weekNum,
+    anio: year,
+    etiqueta: `Semana ${weekNum} (${fmtFecha(monday)} al ${fmtFecha(sunday)})`,
+    rango: `${fmtFecha(monday)} al ${fmtFecha(sunday)}`,
+  }
+}
+
+interface GrupoSemanal {
+  clave: string
+  id_unidad: string
+  semanaKey: string
+  semanaEtiqueta: string
+  semanaRango: string
+  totalLitros: number
+  totalCosto: number
+  totalKm: number
+  cargasCount: number
+  cargas: CargaDieselApi[]
+  costoPromedioLitro: number
+  kml: number | null
+}
+
 export default function Diesel() {
   const { unidades, toast } = useDemo()
   const [tabActiva, setTabActiva] = useState<'cargas' | 'conciliacion'>('cargas')
@@ -123,13 +184,17 @@ export default function Diesel() {
   const [fecha, setFecha]       = useState('')
   const [litros, setLitros]     = useState('')
   const [costo, setCosto]       = useState('')
+  const [costoManual, setCostoManual] = useState(false)
   const [km, setKm]             = useState('')
   const [error, setError]       = useState('')
   const [enviando, setEnviando] = useState(false)
 
-  // filters
+  // Vista y filtros
+  const [vistaModo, setVistaModo] = useState<'individual' | 'semanal'>('individual')
   const [filtroUnidad, setFiltroUnidad] = useState('Todas')
+  const [filtroSemana, setFiltroSemana] = useState('Todas')
   const [busqueda, setBusqueda]         = useState('')
+  const [filaExpandida, setFilaExpandida] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
     setCargas(await getDiesel())
@@ -143,14 +208,95 @@ export default function Diesel() {
     return Array.from(seen).sort()
   }, [cargas])
 
+  const semanasDisponibles = useMemo(() => {
+    const setSem = new Map<string, string>()
+    cargas.forEach((c) => {
+      const info = getSemanaInfo(c.fecha)
+      setSem.set(info.semanaKey, info.etiqueta)
+    })
+    return Array.from(setSem.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, etiqueta]) => ({ value: key, label: etiqueta }))
+  }, [cargas])
+
+  const handleLitrosChange = (val: string) => {
+    setLitros(val)
+    setError('')
+    if (!costoManual) {
+      const num = parseFloat(val)
+      if (!isNaN(num) && num > 0) {
+        setCosto((num * PRECIO_REFERENCIA_DIESEL).toFixed(2))
+      } else {
+        setCosto('')
+      }
+    }
+  }
+
+  const handleCostoChange = (val: string) => {
+    setCosto(val)
+    setCostoManual(true)
+    setError('')
+  }
+
+  const recalcularCosto = () => {
+    setCostoManual(false)
+    const num = parseFloat(litros)
+    if (!isNaN(num) && num > 0) {
+      setCosto((num * PRECIO_REFERENCIA_DIESEL).toFixed(2))
+    }
+  }
+
   const cargasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
     return cargas.filter((c) => {
       if (filtroUnidad !== 'Todas' && c.id_unidad !== filtroUnidad) return false
+      if (filtroSemana !== 'Todas' && getSemanaInfo(c.fecha).semanaKey !== filtroSemana) return false
       if (q && !c.id_unidad.toLowerCase().includes(q)) return false
       return true
     })
-  }, [cargas, filtroUnidad, busqueda])
+  }, [cargas, filtroUnidad, filtroSemana, busqueda])
+
+  const gruposSemanales = useMemo(() => {
+    const mapa = new Map<string, GrupoSemanal>()
+
+    cargasFiltradas.forEach((c) => {
+      const sem = getSemanaInfo(c.fecha)
+      const clave = `${c.id_unidad}__${sem.semanaKey}`
+      const existing = mapa.get(clave)
+      if (!existing) {
+        mapa.set(clave, {
+          clave,
+          id_unidad: c.id_unidad,
+          semanaKey: sem.semanaKey,
+          semanaEtiqueta: sem.etiqueta,
+          semanaRango: sem.rango,
+          totalLitros: c.litros,
+          totalCosto: c.costo_total,
+          totalKm: c.km_recorridos || 0,
+          cargasCount: 1,
+          cargas: [c],
+          costoPromedioLitro: 0,
+          kml: null,
+        })
+      } else {
+        existing.totalLitros += c.litros
+        existing.totalCosto += c.costo_total
+        existing.totalKm += (c.km_recorridos || 0)
+        existing.cargasCount += 1
+        existing.cargas.push(c)
+      }
+    })
+
+    const lista = Array.from(mapa.values()).map((g) => {
+      g.totalLitros = Math.round(g.totalLitros * 100) / 100
+      g.totalCosto = Math.round(g.totalCosto * 100) / 100
+      g.costoPromedioLitro = g.totalLitros > 0 ? g.totalCosto / g.totalLitros : 0
+      g.kml = g.totalLitros > 0 && g.totalKm > 0 ? g.totalKm / g.totalLitros : null
+      return g
+    })
+
+    return lista.sort((a, b) => b.semanaKey.localeCompare(a.semanaKey) || a.id_unidad.localeCompare(b.id_unidad))
+  }, [cargasFiltradas])
 
   const ctrl = useTabla(
     cargasFiltradas,
@@ -168,7 +314,6 @@ export default function Diesel() {
     if (!fecha)    return setError('Captura la fecha de la carga.')
     if (litros === '') return setError('Captura los litros cargados.')
     if (costo === '')  return setError('Captura el costo total de la carga.')
-    if (km === '')     return setError('Captura los kilómetros recorridos desde la última carga.')
     setEnviando(true)
     try {
       const carga = await registrarCarga({
@@ -176,9 +321,10 @@ export default function Diesel() {
         fecha,
         litros: Number(litros),
         costo_total: Number(costo),
-        km_recorridos: Number(km),
+        km_recorridos: km ? Number(km) : 0,
       })
       setUnidadId(''); setFecha(''); setLitros(''); setCosto(''); setKm('')
+      setCostoManual(false)
       toast(`Carga registrada — el consolidado de ${carga.id_unidad} ya la refleja.`)
       await cargar()
     } catch (e) {
@@ -226,8 +372,8 @@ export default function Diesel() {
             <Kicker texto="Combustible" />
             <h2 style={h2Titulo}>Control de Diésel</h2>
             <p style={subTitulo}>
-              Cada carga suma al costo real de su unidad y alimenta la eficiencia km/L del Tablero.
-              Litros, costo y kilómetros se validan contra el catálogo.
+              Cada carga suma al costo real de su unidad. El costo se calcula automáticamente a $24.50/L con opción a ajuste manual según ticket.
+              El kilometraje es opcional en cargas individuales y se cruza semanalmente con Samsara.
             </p>
           </div>
 
@@ -251,16 +397,55 @@ export default function Diesel() {
                 <input type="date" style={campo} value={fecha} onChange={(e) => { setFecha(e.target.value); setError('') }} />
               </label>
               <label style={etiqueta}>
-                Litros
-                <input type="number" min={0} step="0.01" style={campo} placeholder="320.5" value={litros} onChange={(e) => { setLitros(e.target.value); setError('') }} />
+                <span>Litros cargados</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  style={campo}
+                  placeholder="Ej. 320.5"
+                  value={litros}
+                  onChange={(e) => handleLitrosChange(e.target.value)}
+                />
               </label>
               <label style={etiqueta}>
-                Costo total (MXN)
-                <input type="number" min={0} step="0.01" style={campo} placeholder="8975.00" value={costo} onChange={(e) => { setCosto(e.target.value); setError('') }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Costo total (MXN)</span>
+                  {costoManual ? (
+                    <button
+                      type="button"
+                      onClick={recalcularCosto}
+                      title="Restablecer al cálculo automático"
+                      style={{ background: 'none', border: 'none', color: '#C5A059', fontSize: 11.5, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    >
+                      ↺ Auto ($24.50/L)
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11.5, color: '#8A8374', fontWeight: 500 }}>Auto ($24.50/L)</span>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  style={campo}
+                  placeholder="8975.00"
+                  value={costo}
+                  onChange={(e) => handleCostoChange(e.target.value)}
+                />
               </label>
               <label style={etiqueta}>
-                Kilómetros recorridos
-                <input type="number" min={0} style={campo} placeholder="410" value={km} onChange={(e) => { setKm(e.target.value); setError('') }} />
+                <span>
+                  Kilómetros <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}>(Opcional)</span>
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  style={campo}
+                  placeholder="Opcional (Ej. 410)"
+                  value={km}
+                  onChange={(e) => { setKm(e.target.value); setError('') }}
+                />
               </label>
               <button
                 onClick={() => void registrar()}
@@ -271,6 +456,12 @@ export default function Diesel() {
                 Registrar carga
               </button>
             </div>
+            
+            <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              <span>💡 <strong>Cálculo reactivo:</strong> Al ingresar litros se multiplica por $24.50/L. Si el ticket físico difiere, puedes sobreescribirlo libremente.</span>
+              <span>🛰️ <strong>Samsara:</strong> El odómetro y kilometraje real se auditan y cruzan semanalmente.</span>
+            </div>
+
             {error && (
               <div role="alert" style={{ marginTop: 14, background: '#FBEBE8', border: '1px solid #E8A99D', color: '#9B2C2C', borderRadius: 9, padding: '12px 14px', fontSize: 14 }}>
                 {error}
@@ -283,9 +474,55 @@ export default function Diesel() {
             <RendimientoChart cargas={cargasFiltradas} unidad={filtroUnidad} />
           )}
 
-          {/* ── Cargas recientes ── */}
+          {/* ── Cargas recientes y Agrupación Semanal ── */}
           <div style={{ ...card, padding: '14px 20px', overflowX: 'auto', animation: 'fadeUp 0.45s ease', marginTop: 14 }}>
-            <h3 style={{ ...h3Titulo, margin: '0 0 12px' }}>Cargas recientes</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+              <h3 style={{ ...h3Titulo, margin: 0 }}>Historial de Combustible</h3>
+              
+              {/* Selector de modo de vista */}
+              <div style={{ display: 'inline-flex', background: 'rgba(20,24,29,0.06)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => setVistaModo('individual')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 13,
+                    fontFamily: FD,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.03em',
+                    cursor: 'pointer',
+                    background: vistaModo === 'individual' ? '#C5A059' : 'transparent',
+                    color: vistaModo === 'individual' ? '#14181D' : 'var(--text-muted)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  📋 Detalle Individual ({cargasFiltradas.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVistaModo('semanal')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 13,
+                    fontFamily: FD,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.03em',
+                    cursor: 'pointer',
+                    background: vistaModo === 'semanal' ? '#C5A059' : 'transparent',
+                    color: vistaModo === 'semanal' ? '#14181D' : 'var(--text-muted)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  📅 Concentrado Semanal por Unidad ({gruposSemanales.length})
+                </button>
+              </div>
+            </div>
 
             <TablaToolbar
               ctrl={ctrl}
@@ -296,67 +533,240 @@ export default function Diesel() {
               onBusqueda={setBusqueda}
               busquedaPlaceholder="Buscar unidad…"
               rightSlot={
-                <button
-                  onClick={() => {
-                    import('../lib/csv').then(({ descargarCSV }) => {
-                      const headers = ['Unidad', 'Fecha', 'Litros', 'Costo (MXN)', 'Odómetro', 'Rendimiento', 'Estación', 'Ticket']
-                      const rows = cargasFiltradas.map((c) => [
-                        String(c.id_unidad),
-                        String(c.fecha),
-                        String(c.litros),
-                        String(c.costo_total),
-                        String(c.km_recorridos),
-                        c.litros > 0 ? String((c.km_recorridos / c.litros).toFixed(1)) : '—',
-                        '—',
-                        '—',
-                      ])
-                      const filename = `Reporte_Diesel_${new Date().toISOString().split('T')[0]}.csv`
-                      descargarCSV(headers, rows, filename)
-                      toast(`Reporte ${filename} descargado exitosamente.`)
-                    })
-                  }}
-                  className="hv-borde-ink"
-                  style={{ padding: '7px 14px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 12.5, textTransform: 'uppercase', cursor: 'pointer' }}
-                >
-                  ⬇️ Exportar CSV
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {semanasDisponibles.length > 0 && (
+                    <select
+                      value={filtroSemana}
+                      onChange={(e) => setFiltroSemana(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        fontSize: 12.5,
+                        background: 'var(--bg-input)',
+                        color: 'var(--text-main)',
+                        border: '1px solid var(--border-color)',
+                      }}
+                      title="Filtrar por semana calendario"
+                    >
+                      <option value="Todas">Todas las semanas</option>
+                      {semanasDisponibles.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    onClick={() => {
+                      import('../lib/csv').then(({ descargarCSV }) => {
+                        if (vistaModo === 'semanal') {
+                          const headers = ['Unidad', 'Semana', 'Rango Fechas', 'No. Cargas', 'Total Litros', 'Costo Total (MXN)', 'Precio Prom/L (MXN)', 'Km Recorridos', 'Rendimiento (km/L)']
+                          const rows = gruposSemanales.map((g) => [
+                            g.id_unidad,
+                            g.semanaKey,
+                            g.semanaRango,
+                            String(g.cargasCount),
+                            String(g.totalLitros),
+                            String(g.totalCosto),
+                            g.costoPromedioLitro.toFixed(2),
+                            String(g.totalKm),
+                            g.kml !== null ? g.kml.toFixed(2) : '—',
+                          ])
+                          const filename = `Concentrado_Semanal_Diesel_${new Date().toISOString().split('T')[0]}.csv`
+                          descargarCSV(headers, rows, filename)
+                          toast(`Reporte ${filename} descargado exitosamente.`)
+                        } else {
+                          const headers = ['Unidad', 'Fecha', 'Litros', 'Costo (MXN)', 'Odómetro', 'Rendimiento (km/L)', 'Semana']
+                          const rows = cargasFiltradas.map((c) => {
+                            const sem = getSemanaInfo(c.fecha)
+                            return [
+                              String(c.id_unidad),
+                              String(c.fecha),
+                              String(c.litros),
+                              String(c.costo_total),
+                              c.km_recorridos > 0 ? String(c.km_recorridos) : '— (Samsara)',
+                              c.litros > 0 && c.km_recorridos > 0 ? String((c.km_recorridos / c.litros).toFixed(2)) : '—',
+                              sem.semanaKey,
+                            ]
+                          })
+                          const filename = `Reporte_Individual_Diesel_${new Date().toISOString().split('T')[0]}.csv`
+                          descargarCSV(headers, rows, filename)
+                          toast(`Reporte ${filename} descargado exitosamente.`)
+                        }
+                      })
+                    }}
+                    className="hv-borde-ink"
+                    style={{ padding: '7px 14px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: 8, fontFamily: FD, fontWeight: 700, fontSize: 12.5, textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    ⬇️ Exportar CSV
+                  </button>
+                </div>
               }
             />
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 640 }}>
-              <thead>
-                <tr style={theadRow}>
-                  <SortTh col="id_unidad"    label="Unidad"         sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                  <SortTh col="fecha"        label="Fecha"          sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
-                  <SortTh col="litros"       label="Litros"         sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
-                  <SortTh col="costo_total"  label="Costo"          sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
-                  <SortTh col="km_recorridos" label="Km recorridos" sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
-                  <SortTh col="kml"          label="km/L"           sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {ctrl.filasPagina.map((c) => (
-                  <tr key={c.id} className="hv-fila">
-                    <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 17 }}>{c.id_unidad}</td>
-                    <td style={{ ...tdCell, whiteSpace: 'nowrap' }}>{c.fecha}</td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.litros} L</td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(c.costo_total)}</td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.km_recorridos} km</td>
-                    <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                      {c.litros > 0 ? (c.km_recorridos / c.litros).toFixed(1) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {vistaModo === 'individual' ? (
+              <>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 640 }}>
+                  <thead>
+                    <tr style={theadRow}>
+                      <SortTh col="id_unidad"    label="Unidad"         sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
+                      <SortTh col="fecha"        label="Fecha"          sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} />
+                      <SortTh col="litros"       label="Litros"         sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
+                      <SortTh col="costo_total"  label="Costo Total"    sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Precio/L</th>
+                      <SortTh col="km_recorridos" label="Km Carga"      sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
+                      <SortTh col="kml"          label="km/L"           sortCol={ctrl.sortCol} sortDir={ctrl.sortDir} onSort={ctrl.toggleSort} style={{ textAlign: 'right' }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ctrl.filasPagina.map((c) => {
+                      const precioPorLitro = c.litros > 0 ? (c.costo_total / c.litros).toFixed(2) : '—'
+                      return (
+                        <tr key={c.id} className="hv-fila">
+                          <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 17 }}>{c.id_unidad}</td>
+                          <td style={{ ...tdCell, whiteSpace: 'nowrap' }}>
+                            {c.fecha}
+                            <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>
+                              {getSemanaInfo(c.fecha).semanaKey}
+                            </span>
+                          </td>
+                          <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.litros} L</td>
+                          <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(c.costo_total)}</td>
+                          <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>${precioPorLitro}</td>
+                          <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {c.km_recorridos > 0 ? (
+                              `${c.km_recorridos} km`
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>— (Samsara)</span>
+                            )}
+                          </td>
+                          <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                            {c.litros > 0 && c.km_recorridos > 0 ? (c.km_recorridos / c.litros).toFixed(2) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
 
-            {ctrl.total === 0 && (
-              <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 14 }}>
-                Sin cargas que coincidan con los filtros.
-              </div>
+                {ctrl.total === 0 && (
+                  <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 14 }}>
+                    Sin cargas que coincidan con los filtros.
+                  </div>
+                )}
+
+                <TablaFooter ctrl={ctrl} />
+              </>
+            ) : (
+              <>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 700 }}>
+                  <thead>
+                    <tr style={theadRow}>
+                      <th style={{ ...theadRow, padding: '12px 10px' }}>Unidad</th>
+                      <th style={{ ...theadRow, padding: '12px 10px' }}>Semana Calendario</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'center' }}>Cargas</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Litros Semanales</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Costo Semanal</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Precio Prom/L</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Km Acumulados</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'right' }}>Rendimiento Semanal</th>
+                      <th style={{ ...theadRow, padding: '12px 10px', textAlign: 'center' }}>Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gruposSemanales.map((g) => {
+                      const expandida = filaExpandida === g.clave
+                      return (
+                        <tr key={g.clave} style={{ borderBottom: '1px solid rgba(197, 160, 89, 0.15)' }}>
+                          <td colSpan={9} style={{ padding: 0 }}>
+                            <div
+                              onClick={() => setFilaExpandida(expandida ? null : g.clave)}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1.2fr 1.6fr 0.8fr 1.2fr 1.2fr 1.1fr 1.2fr 1.3fr 0.8fr',
+                                alignItems: 'center',
+                                padding: '11px 10px',
+                                cursor: 'pointer',
+                                background: expandida ? 'rgba(197, 160, 89, 0.08)' : 'transparent',
+                                transition: 'background 0.15s ease',
+                              }}
+                            >
+                              <div style={{ fontFamily: FD, fontWeight: 700, fontSize: 17 }}>{g.id_unidad}</div>
+                              <div>
+                                <strong style={{ color: 'var(--text-main)', display: 'block' }}>{g.semanaKey}</strong>
+                                <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{g.semanaRango}</span>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <span style={{ background: '#EAE6DC', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#4A4438' }}>
+                                  {g.cargasCount} {g.cargasCount === 1 ? 'carga' : 'cargas'}
+                                </span>
+                              </div>
+                              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                                {g.totalLitros.toLocaleString('es-MX')} L
+                              </div>
+                              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+                                {fmt(g.totalCosto)}
+                              </div>
+                              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
+                                ${g.costoPromedioLitro.toFixed(2)}
+                              </div>
+                              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                {g.totalKm > 0 ? `${g.totalKm.toLocaleString('es-MX')} km` : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>— (Samsara)</span>}
+                              </div>
+                              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: g.kml ? '#C5A059' : 'inherit' }}>
+                                {g.kml !== null ? `${g.kml.toFixed(2)} km/L` : '—'}
+                              </div>
+                              <div style={{ textAlign: 'center', fontSize: 12, color: '#C5A059', fontWeight: 600 }}>
+                                {expandida ? '▲ Cerrar' : '▼ Ver'}
+                              </div>
+                            </div>
+
+                            {/* Detalle desplegable de cargas individuales de la semana */}
+                            {expandida && (
+                              <div style={{ background: 'rgba(20,24,29,0.03)', padding: '12px 18px', borderTop: '1px dashed rgba(197, 160, 89, 0.25)', borderBottom: '1px dashed rgba(197, 160, 89, 0.25)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                                  Cargas individuales que integran esta semana ({g.cargas.length}):
+                                </div>
+                                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                                  <thead>
+                                    <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>
+                                      <th style={{ padding: '4px 8px' }}>Fecha</th>
+                                      <th style={{ padding: '4px 8px', textAlign: 'right' }}>Litros</th>
+                                      <th style={{ padding: '4px 8px', textAlign: 'right' }}>Costo</th>
+                                      <th style={{ padding: '4px 8px', textAlign: 'right' }}>Precio/L</th>
+                                      <th style={{ padding: '4px 8px', textAlign: 'right' }}>Km Carga</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {g.cargas.map((sc) => (
+                                      <tr key={sc.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                                        <td style={{ padding: '6px 8px' }}>📅 {sc.fecha}</td>
+                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{sc.litros} L</td>
+                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(sc.costo_total)}</td>
+                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
+                                          ${sc.litros > 0 ? (sc.costo_total / sc.litros).toFixed(2) : '—'}
+                                        </td>
+                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                          {sc.km_recorridos > 0 ? `${sc.km_recorridos} km` : <span style={{ color: 'var(--text-muted)' }}>Opcional</span>}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+
+                {gruposSemanales.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 14 }}>
+                    Sin concentrados semanales que coincidan con los filtros.
+                  </div>
+                )}
+              </>
             )}
-
-            <TablaFooter ctrl={ctrl} />
           </div>
         </>
       ) : (

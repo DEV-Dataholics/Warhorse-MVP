@@ -15,6 +15,7 @@ class DieselDesgloseModel extends Model
     protected $allowedFields    = [
         'carga_externa_id',
         'unidad_id',
+        'folio_slip',
         'litros',
     ];
 
@@ -25,7 +26,7 @@ class DieselDesgloseModel extends Model
 
     public function getDesglosesPorCarga(int $cargaId)
     {
-        return $this->select('diesel_desgloses.id, diesel_desgloses.unidad_id, diesel_desgloses.litros, unidades.id_unidad as unidad_nombre')
+        return $this->select('diesel_desgloses.id, diesel_desgloses.unidad_id, diesel_desgloses.folio_slip, diesel_desgloses.litros, unidades.id_unidad as unidad_nombre')
             ->join('unidades', 'unidades.id = diesel_desgloses.unidad_id')
             ->where('carga_externa_id', $cargaId)
             ->findAll();

@@ -51,7 +51,9 @@ export default function ConciliacionDiesel() {
   }, [cargarDatos])
 
   const [desglosarCarga, setDesglosarCarga] = useState<CargaExternaApi | null>(null)
+  const [tipoDestino, setTipoDestino] = useState<string>('Todos')
   const [nuevaUnidadDesglose, setNuevaUnidadDesglose] = useState('')
+  const [folioSlip, setFolioSlip] = useState('')
   const [nuevosLitrosDesglose, setNuevosLitrosDesglose] = useState('')
 
   const parsearYCruzar = () => {
@@ -113,11 +115,20 @@ export default function ConciliacionDiesel() {
     }
   }
 
+  const unidadesFiltradas = unidades.filter(u => {
+    if (tipoDestino === 'Todos') return true
+    if (!u.tipo) return false
+    const t = u.tipo.toLowerCase()
+    const sel = tipoDestino.toLowerCase()
+    return t.includes(sel) || (sel.includes('termo') && t.includes('termo')) || (sel.includes('caja') && t.includes('caja'))
+  })
+
   const agregarDesglose = async () => {
     if (!desglosarCarga) return
     const l = Number(nuevosLitrosDesglose)
     if (!nuevaUnidadDesglose) return toast('Selecciona la unidad destino.')
-    if (isNaN(l) || l <= 0) return toast('Ingresa una cantidad de litros vAlida.')
+    if (isNaN(l) || l <= 0) return toast('Ingresa una cantidad de litros válida.')
+    if (!folioSlip.trim()) return toast('El Folio de slip es obligatorio.')
 
     const litrosAsignados = desglosarCarga.desglose.reduce((sum: number, item: any) => sum + item.litros, 0)
     if (litrosAsignados + l > desglosarCarga.litros_totales) {
@@ -127,7 +138,11 @@ export default function ConciliacionDiesel() {
     try {
       const u = unidades.find(un => un.id_unidad === nuevaUnidadDesglose)
       if (!u) return toast('Unidad no encontrada.')
-      await asignarDesglose(desglosarCarga.id, { unidad_id: u.id, litros: l })
+      await asignarDesglose(desglosarCarga.id, {
+        unidad_id: u.id,
+        litros: l,
+        folio_slip: folioSlip.trim()
+      })
       toast('Carga parcial asignada exitosamente.')
       const c = await getCargasExternas()
       setCargasExternas(c)
@@ -282,7 +297,7 @@ export default function ConciliacionDiesel() {
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {c.desglose.map((d: any, idx: number) => (
                         <span key={idx} style={badge('#E3ECF7', '#1B4E8C', '#9FC0E4')}>
-                          {d.unidad}: {d.litros} L
+                          {d.unidad_nombre || d.unidad}: {d.litros} L {d.folio_slip ? `[Slip: ${d.folio_slip}]` : ''}
                         </span>
                       ))}
                       {c.desglose.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Sin desglose aún</span>}
@@ -314,12 +329,12 @@ export default function ConciliacionDiesel() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            style={{ background: 'var(--bg-glass)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: 14, maxWidth: 480, width: '100%', padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', borderTop: '5px solid #C5A059' }}
+            style={{ background: 'var(--bg-glass)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: 14, maxWidth: 580, width: '100%', padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', borderTop: '5px solid #C5A059' }}
           >
             <h3 style={{ fontFamily: FD, fontWeight: 700, fontSize: 22, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-main)', margin: '0 0 10px' }}>
               Fragmentar Contenedor Externo
             </h3>
-            <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            <div style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Tanque del día <strong style={{ color: 'var(--text-main)' }}>{desglosarCarga.fecha}</strong> · Litros totales: <strong style={{ color: 'var(--text-main)' }}>{desglosarCarga.litros_totales} L</strong>.<br />
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
@@ -330,52 +345,111 @@ export default function ConciliacionDiesel() {
                   <div style={{ width: `${(desglosarCarga.desglose.reduce((s: number, i: any) => s + i.litros, 0) / desglosarCarga.litros_totales) * 100}%`, height: '100%', background: 'var(--accent-gold)', transition: 'width 0.3s ease' }} />
                 </div>
               </div>
-            </p>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                <label style={{ ...etiqueta, flex: 2 }}>
-                  Unidad Destino
-                  <select style={campo} value={nuevaUnidadDesglose} onChange={(e) => setNuevaUnidadDesglose(e.target.value)}>
+              {/* Selectores en cascada: Tipo de Destino -> Unidad Destino */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <label style={etiqueta}>
+                  Tipo de Destino (Filtro)
+                  <select
+                    style={campo}
+                    value={tipoDestino}
+                    onChange={(e) => {
+                      setTipoDestino(e.target.value)
+                      setNuevaUnidadDesglose('')
+                    }}
+                  >
+                    <option value="Todos">Todos los destinos</option>
+                    <option value="Tractor">Tractor / Tractocamión</option>
+                    <option value="Termo">Termo / Thermo King</option>
+                    <option value="Caja seca">Caja seca</option>
+                    <option value="Generador">Generador / Planta</option>
+                  </select>
+                </label>
+
+                <label style={etiqueta}>
+                  Unidad Destino *
+                  <select
+                    style={campo}
+                    value={nuevaUnidadDesglose}
+                    onChange={(e) => setNuevaUnidadDesglose(e.target.value)}
+                  >
                     <option value="">Selecciona unidad...</option>
-                    {unidades.map(u => (
+                    {unidadesFiltradas.map(u => (
                       <option key={u.id} value={u.id_unidad}>{u.id_unidad} ({u.tipo})</option>
                     ))}
                   </select>
                 </label>
-                <label style={{ ...etiqueta, flex: 1 }}>
-                  Litros
-                  <input type="number" min={1} max={desglosarCarga.litros_totales - desglosarCarga.desglose.reduce((s: number, i: any) => s + i.litros, 0)} style={campo} placeholder="Ej. 30" value={nuevosLitrosDesglose} onChange={(e) => {
-                    const max = desglosarCarga.litros_totales - desglosarCarga.desglose.reduce((s: number, i: any) => s + i.litros, 0)
-                    if (Number(e.target.value) > max) {
-                      setNuevosLitrosDesglose(String(max))
-                    } else {
-                      setNuevosLitrosDesglose(e.target.value)
-                    }
-                  }} />
+              </div>
+
+              {/* Folio de slip obligatorio y Litros a cargar */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
+                <label style={etiqueta}>
+                  Folio de Slip (Comprobante Físico) *
+                  <input
+                    type="text"
+                    style={campo}
+                    placeholder="Ej. SLP-9842"
+                    value={folioSlip}
+                    onChange={(e) => setFolioSlip(e.target.value)}
+                  />
                 </label>
+
+                <label style={etiqueta}>
+                  Litros *
+                  <input
+                    type="number"
+                    min={1}
+                    max={desglosarCarga.litros_totales - desglosarCarga.desglose.reduce((s: number, i: any) => s + i.litros, 0)}
+                    style={campo}
+                    placeholder="Ej. 65"
+                    value={nuevosLitrosDesglose}
+                    onChange={(e) => {
+                      const max = desglosarCarga.litros_totales - desglosarCarga.desglose.reduce((s: number, i: any) => s + i.litros, 0)
+                      if (Number(e.target.value) > max) {
+                        setNuevosLitrosDesglose(String(max))
+                      } else {
+                        setNuevosLitrosDesglose(e.target.value)
+                      }
+                    }}
+                  />
+                </label>
+
                 <button
                   onClick={agregarDesglose}
                   className="hv-naranja"
-                  style={{ padding: 12, background: 'var(--accent-gold)', border: 'none', borderRadius: 8, color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '12px 18px', background: 'var(--accent-gold)', border: 'none', borderRadius: 8, color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', height: 46 }}
                 >
-                  Asignar
+                  + Asignar
                 </button>
               </div>
 
-              <div style={{ borderTop: '1px solid #E7E0D2', paddingTop: 10, marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -4 }}>
+                ℹ️ <em>Folio No-Único</em>: Un mismo comprobante puede amparar múltiples unidades. Firma digital y fotografía purgadas conforme a TKT-WAR-163.
+              </div>
+
+              {/* Desglose Registrado */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 10, marginTop: 4 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 8 }}>
-                  Desglose Registrado:
+                  Desglose Registrado en este Tanque:
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto' }}>
                   {desglosarCarga.desglose.map((d: any, i: number) => (
-                    <div key={d.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-input)', padding: '6px 10px', borderRadius: 6, fontSize: 13 }}>
-                      <span><strong>{d.unidad_nombre}</strong>: {d.litros} Litros</span>
-                      <button onClick={() => limpiarDesglose(d.id)} style={{ background: 'transparent', border: 'none', color: '#C53030', cursor: 'pointer' }}>✕</button>
+                    <div key={d.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-input)', padding: '8px 12px', borderRadius: 6, fontSize: 13, border: '1px solid var(--border-color)' }}>
+                      <div>
+                        <strong>{d.unidad_nombre || d.unidad}</strong>: {d.litros} Litros
+                        {d.folio_slip && (
+                          <span style={{ marginLeft: 8, fontSize: 11.5, padding: '2px 7px', background: 'rgba(197, 160, 89, 0.15)', color: 'var(--accent-gold)', borderRadius: 4, fontWeight: 700 }}>
+                            Slip: {d.folio_slip}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => limpiarDesglose(d.id)} title="Eliminar asignación" style={{ background: 'transparent', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>✕</button>
                     </div>
                   ))}
                   {desglosarCarga.desglose.length === 0 && (
-                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Asigna partes del tanque arriba.</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No hay unidades asignadas aún a este contenedor.</span>
                   )}
                 </div>
               </div>

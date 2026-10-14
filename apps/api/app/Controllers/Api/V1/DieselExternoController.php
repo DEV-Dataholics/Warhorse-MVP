@@ -49,8 +49,9 @@ class DieselExternoController extends BaseController
         $datos = (array) $this->request->getJSON(true);
 
         if (! $this->validateData($datos, [
-            'unidad_id' => 'required|is_natural_no_zero',
-            'litros'    => 'required|decimal|greater_than[0]',
+            'unidad_id'  => 'required|is_natural_no_zero',
+            'litros'     => 'required|decimal|greater_than[0]',
+            'folio_slip' => 'required|string|max_length[100]',
         ])) {
             return RespuestasApi::error(422, 'validation', 'Datos de desglose inválidos', $this->validator->getErrors());
         }
@@ -73,6 +74,7 @@ class DieselExternoController extends BaseController
         $desgloseId = $desgloseModel->insert([
             'carga_externa_id' => $cargaId,
             'unidad_id'        => $datos['unidad_id'],
+            'folio_slip'       => trim((string) $datos['folio_slip']),
             'litros'           => $datos['litros'],
         ]);
 

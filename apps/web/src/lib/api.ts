@@ -421,7 +421,7 @@ export interface CargaExternaApi {
   fecha: string
   litros_totales: number
   costo_total: number
-  desglose: { id: number, unidad_id: number, unidad_nombre: string, litros: number }[]
+  desglose: { id: number, unidad_id: number, unidad_nombre: string, folio_slip?: string, litros: number }[]
 }
 
 export async function getCargasExternas(): Promise<CargaExternaApi[]> {
@@ -433,7 +433,7 @@ export async function crearCargaExterna(datos: { fecha: string, litros_totales: 
   return pedir<{ id: number }>('/diesel/externos', { method: 'POST', body: JSON.stringify(datos) })
 }
 
-export async function asignarDesglose(cargaId: number, datos: { unidad_id: number, litros: number }): Promise<{ id: number }> {
+export async function asignarDesglose(cargaId: number, datos: { unidad_id: number, litros: number, folio_slip: string }): Promise<{ id: number }> {
   return pedir<{ id: number }>(`/diesel/externos/${cargaId}/desglose`, { method: 'POST', body: JSON.stringify(datos) })
 }
 

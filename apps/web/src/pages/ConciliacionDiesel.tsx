@@ -3,6 +3,8 @@ import Kicker from '../components/Kicker'
 import { badge, card, FD, fmt, h2Titulo, h3Titulo, subTitulo, tdCell, thCell, theadRow } from '../lib/estilos'
 import { useDemo } from '../lib/demo'
 import { getCargasExternas, asignarDesglose, borrarDesglose, type CargaExternaApi } from '../lib/api'
+import { useTabla } from '../lib/useTabla'
+import { SortTh, TablaFooter } from '../components/TablaControls'
 
 const campo: CSSProperties = { padding: 12, border: '1px solid var(--border-color)', borderRadius: 9, fontSize: 15, background: 'var(--bg-input)', width: '100%' }
 const etiqueta: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 600 }
@@ -49,6 +51,19 @@ export default function ConciliacionDiesel() {
   useEffect(() => {
     cargarDatos()
   }, [cargarDatos])
+
+  const getValCarga = useCallback((c: CargaExternaApi, col: string) => {
+    switch (col) {
+      case 'fecha': return c.fecha
+      case 'litros_totales': return c.litros_totales
+      case 'costo_total': return c.costo_total
+      case 'desglose': return c.desglose.length
+      default: return ''
+    }
+  }, [])
+
+  // Homologated pagination & sorting hook (TKT-WAR-154 standard)
+  const ctrlCargas = useTabla<CargaExternaApi>(cargasExternas, 'fecha', 'desc', getValCarga, 10)
 
   const [desglosarCarga, setDesglosarCarga] = useState<CargaExternaApi | null>(null)
   const [tipoDestino, setTipoDestino] = useState<string>('Todos')
@@ -268,25 +283,43 @@ export default function ConciliacionDiesel() {
         </div>
       )}
 
-      {/* Split external loads section */}
+      {/* Split external loads section with standardized pagination */}
       <div style={{ ...card, padding: '14px 20px', overflowX: 'auto', marginTop: 24, animation: 'fadeUp 0.48s ease' }}>
-        <h3 style={{ ...h3Titulo, marginBottom: 12 }}>Desglose de Tanques Externos / Cargas Compartidas</h3>
-        <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 14 }}>
-          Selecciona una carga general realizada a un contenedor o tanque externo para fragmentarla y asignarla a unidades/cajas individuales.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <h3 style={{ ...h3Titulo, margin: 0 }}>Desglose de Tanques Externos / Cargas Compartidas</h3>
+            <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
+              Selecciona una carga general realizada a un contenedor o tanque externo para fragmentarla y asignarla a unidades/cajas individuales.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Mostrar:</span>
+            <select
+              value={ctrlCargas.pageSize}
+              onChange={(e) => ctrlCargas.setPageSize(Number(e.target.value))}
+              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: 13 }}
+            >
+              <option value={10}>10 por pág.</option>
+              <option value={25}>25 por pág.</option>
+              <option value={50}>50 por pág.</option>
+              <option value={100}>100 por pág.</option>
+            </select>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>({ctrlCargas.total} cargas)</span>
+          </div>
+        </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={theadRow}>
-              <th style={thCell}>Fecha</th>
-              <th style={{ ...thCell, textAlign: 'right' }}>Litros Totales</th>
-              <th style={{ ...thCell, textAlign: 'right' }}>Costo</th>
-              <th style={thCell}>Desglose Asignado</th>
+              <SortTh col="fecha" label="Fecha" sortCol={ctrlCargas.sortCol} sortDir={ctrlCargas.sortDir} onSort={ctrlCargas.toggleSort} />
+              <SortTh col="litros_totales" label="Litros Totales" sortCol={ctrlCargas.sortCol} sortDir={ctrlCargas.sortDir} onSort={ctrlCargas.toggleSort} style={{ textAlign: 'right' }} />
+              <SortTh col="costo_total" label="Costo" sortCol={ctrlCargas.sortCol} sortDir={ctrlCargas.sortDir} onSort={ctrlCargas.toggleSort} style={{ textAlign: 'right' }} />
+              <SortTh col="desglose" label="Desglose Asignado" sortCol={ctrlCargas.sortCol} sortDir={ctrlCargas.sortDir} onSort={ctrlCargas.toggleSort} />
               <th style={{ ...thCell, padding: '12px 10px', borderBottom: '2px solid rgba(197, 160, 89, 0.3)' }} />
             </tr>
           </thead>
           <tbody>
-            {cargasExternas.map((c) => {
+            {ctrlCargas.filasPagina.map((c) => {
               const litrosAsignados = c.desglose.reduce((sum, item) => sum + item.litros, 0)
               return (
                 <tr key={c.id} className="hv-fila">
@@ -317,6 +350,14 @@ export default function ConciliacionDiesel() {
             })}
           </tbody>
         </table>
+
+        {ctrlCargas.total === 0 && (
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 14 }}>
+            Sin registros de tanques externos.
+          </div>
+        )}
+
+        <TablaFooter ctrl={ctrlCargas} />
       </div>
 
       {/* ── Modal Desglose ── */}

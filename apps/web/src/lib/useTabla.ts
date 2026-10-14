@@ -34,10 +34,11 @@ export function useTabla<T>(
   defaultSort: string,
   defaultDir: SortDir = 'desc',
   getVal: (row: T, col: string) => string | number | null | undefined,
+  initialPageSize: number = 25,
 ): TablaControls<T> {
   const [sortCol, setSortCol] = useState(defaultSort)
   const [sortDir, setSortDir] = useState<SortDir>(defaultDir)
-  const [pageSize, setPageSizeRaw] = useState(25)
+  const [pageSize, setPageSizeRaw] = useState(initialPageSize)
   const [page, setPageRaw] = useState(1)
 
   const sorted = useMemo(() => {

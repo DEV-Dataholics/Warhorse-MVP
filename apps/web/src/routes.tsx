@@ -296,7 +296,7 @@ export function AppRoutes() {
           }
         />
 
-        {/* Módulo Diésel */}
+        {/* Módulo Diésel (Centralizado en /diesel/cargas) */}
         <Route
           path="/diesel/cargas"
           element={
@@ -305,22 +305,16 @@ export function AppRoutes() {
             </RutaProtegida>
           }
         />
-        <Route
-          path="/diesel/externas"
-          element={
-            <RutaProtegida rolesPermitidos={['diesel', 'admin']}>
-              <Diesel />
-            </RutaProtegida>
-          }
-        />
-        <Route
-          path="/diesel"
-          element={
-            <RutaProtegida rolesPermitidos={['diesel', 'admin']}>
-              <Diesel />
-            </RutaProtegida>
-          }
-        />
+        <Route path="/diesel/externas" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/diesel/conciliacion" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/diesel" element={<Navigate to="/diesel/cargas" replace />} />
+
+        {/* Compatibilidad y redirecciones heredadas /app/diesel/* */}
+        <Route path="/app/diesel/cargas" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/app/diesel/externas" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/app/diesel/conciliacion" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/app/diesel/*" element={<Navigate to="/diesel/cargas" replace />} />
+        <Route path="/app/diesel" element={<Navigate to="/diesel/cargas" replace />} />
       </Route>
 
       {/* Redirección raíz o 404 */}

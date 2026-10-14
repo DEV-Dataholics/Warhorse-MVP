@@ -44,8 +44,8 @@ export const GafeteMecanicoModal: React.FC<Props> = ({ mecanico, abierto, alCerr
         },
         errorCorrectionLevel: 'H',
       })
-        .then(url => setQrDataUrl(url))
-        .catch(err => console.error('Error al generar QR de mecánico:', err))
+        .then((url: string) => setQrDataUrl(url))
+        .catch((err: unknown) => console.error('Error al generar QR de mecánico:', err))
     }
   }, [mecanico, abierto, folioMecanico])
 

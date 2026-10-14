@@ -216,7 +216,7 @@ export default function Diesel() {
             transition: 'all 0.2s ease', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: FD
           }}
         >
-          📡 Conciliación Samsara
+          📡 Conciliación Samsara, MPG & Tanques
         </button>
       </div>
 

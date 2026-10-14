@@ -99,4 +99,78 @@ class DieselExternoController extends BaseController
             'message' => 'Desglose eliminado'
         ]);
     }
+
+    /**
+     * Exporta el reporte de conciliación Samsara vs Combustible en formato CSV ejecutivo.
+     * Permite mapear, ocultar o renombrar dinámicamente columnas según validación de negocio (TKT-WAR-165).
+     */
+    public function exportarConciliacion(): ResponseInterface
+    {
+        $payload = (array) $this->request->getJSON(true);
+        $filas = $payload['filas'] ?? [];
+        $columnasMapeo = $payload['columnas_mapeo'] ?? [
+            'unidad'            => 'Unidad / Económico',
+            'litros'            => 'Litros Dispensados (L)',
+            'galones'           => 'Volumen (Gal)',
+            'costo'             => 'Costo Total (MXN)',
+            'distancia_km'      => 'Distancia Samsara (KM)',
+            'distancia_mi'      => 'Distancia Samsara (MI)',
+            'rendimiento_kml'   => 'Rendimiento (KM/L)',
+            'rendimiento_mpg'   => 'Rendimiento (MPG)',
+            'estado_operativo'  => 'Estatus Operativo',
+        ];
+        $soloAlertas = !empty($payload['solo_alertas']);
+
+        // Filtrado por alerta roja (< 3.0 MPG / < 1.28 km/L)
+        if ($soloAlertas) {
+            $filas = array_values(array_filter($filas, function($r) {
+                $mpg = isset($r['rendimiento_mpg']) ? (float)$r['rendimiento_mpg'] : ((float)($r['rendimiento'] ?? 0) * 2.35214);
+                return $mpg < 3.0;
+            }));
+        }
+
+        $output = fopen('php://temp', 'r+');
+        fputs($output, "\xEF\xBB\xBF"); // UTF-8 BOM para compatibilidad total con Excel
+
+        // Encabezados
+        fputcsv($output, array_values($columnasMapeo));
+
+        // Filas formateadas
+        foreach ($filas as $fila) {
+            $rowValues = [];
+            foreach (array_keys($columnasMapeo) as $colKey) {
+                $val = $fila[$colKey] ?? '';
+                // Fallbacks derivados si vienen en métrico nativo
+                if ($val === '') {
+                    if ($colKey === 'galones' && isset($fila['litros'])) {
+                        $val = round((float)$fila['litros'] / 3.78541, 2);
+                    } elseif ($colKey === 'distancia_km' && isset($fila['distancia'])) {
+                        $val = round((float)$fila['distancia'], 2);
+                    } elseif ($colKey === 'distancia_mi' && isset($fila['distancia'])) {
+                        $val = round((float)$fila['distancia'] / 1.60934, 2);
+                    } elseif ($colKey === 'rendimiento_kml' && isset($fila['rendimiento'])) {
+                        $val = round((float)$fila['rendimiento'], 2);
+                    } elseif ($colKey === 'rendimiento_mpg' && isset($fila['rendimiento'])) {
+                        $val = round((float)$fila['rendimiento'] * 2.35214, 2);
+                    } elseif ($colKey === 'estado_operativo' && isset($fila['rendimiento'])) {
+                        $mpg = (float)$fila['rendimiento'] * 2.35214;
+                        $val = $mpg < 3.0 ? 'ALERTA ROJA (< 3.0 MPG)' : 'NORMAL';
+                    }
+                }
+                $rowValues[] = $val;
+            }
+            fputcsv($output, $rowValues);
+        }
+
+        rewind($output);
+        $csvContent = stream_get_contents($output);
+        fclose($output);
+
+        $filename = ($soloAlertas ? 'conciliacion_alertas_rojas_' : 'conciliacion_combustible_ejecutiva_') . date('Y-m-d') . '.csv';
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($csvContent);
+    }
 }

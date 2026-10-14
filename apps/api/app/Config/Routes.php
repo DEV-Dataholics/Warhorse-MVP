@@ -114,6 +114,7 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     $routes->post('diesel/externos', 'DieselExternoController::createCarga', ['filter' => ['cors', 'api-auth', 'rbac:diesel,admin', 'throttle-mut', 'password-vigente']]);
     $routes->post('diesel/externos/(:num)/desglose', 'DieselExternoController::createDesglose/$1', ['filter' => ['cors', 'api-auth', 'rbac:diesel,admin', 'throttle-mut', 'password-vigente']]);
     $routes->delete('diesel/externos/(:num)/desglose/(:num)', 'DieselExternoController::deleteDesglose/$1/$2', ['filter' => ['cors', 'api-auth', 'rbac:diesel,admin', 'throttle-mut', 'password-vigente']]);
+    $routes->post('diesel/conciliacion/export', 'DieselExternoController::exportarConciliacion', ['filter' => ['cors', 'api-auth', 'rbac:diesel,admin', 'password-vigente']]);
 
     // Taller (RF-TAL-01..04): captura solo taller; lectura taller y admin
     $routes->get('taller', 'TallerController::index', ['filter' => ['cors', 'api-auth', 'rbac:taller,admin', 'password-vigente']]);

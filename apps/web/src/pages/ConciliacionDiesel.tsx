@@ -17,7 +17,18 @@ interface FilaConciliada {
   rendimiento: number // km / L
 }
 
-
+// Configurable layout dictionary for Greisy / executive exports (TKT-WAR-165)
+export const LAYOUT_EXPORTACION_CONCILIACION: Record<string, string> = {
+  unidad: 'Unidad / Económico',
+  litros: 'Litros Dispensados (L)',
+  galones: 'Volumen (Gal)',
+  costo: 'Costo Total (MXN)',
+  distancia_km: 'Distancia Samsara (KM)',
+  distancia_mi: 'Distancia Samsara (MI)',
+  rendimiento_kml: 'Rendimiento (KM/L)',
+  rendimiento_mpg: 'Rendimiento (MPG)',
+  estado_operativo: 'Estatus Operativo',
+}
 
 export default function ConciliacionDiesel() {
   const { unidades, toast } = useDemo()
@@ -26,6 +37,8 @@ export default function ConciliacionDiesel() {
   const [resultados, setResultados] = useState<FilaConciliada[]>([])
   const [dragComb, setDragComb] = useState(false)
   const [dragSamsara, setDragSamsara] = useState(false)
+  const [unidadMetrica, setUnidadMetrica] = useState<'metric' | 'imperial'>('metric')
+  const [filtroAlertas, setFiltroAlertas] = useState<'todas' | 'rojas'>('todas')
 
   const handleFileDrop = (tipo: 'combustible' | 'samsara', file: File) => {
     const reader = new FileReader()
@@ -128,6 +141,54 @@ export default function ConciliacionDiesel() {
     } catch (e) {
       toast('Error al parsear los archivos CSV. Verifica el formato.')
     }
+  }
+
+  const exportarCSV = (soloAlertas: boolean = false) => {
+    const filasAExportar = resultados.filter(r => {
+      if (!soloAlertas) return true
+      const mpg = r.rendimiento * 2.35214
+      return mpg < 3.0
+    })
+
+    if (filasAExportar.length === 0) {
+      return toast(soloAlertas ? 'No hay unidades con alerta roja (< 3.0 MPG) para exportar.' : 'No hay datos de conciliación para exportar.')
+    }
+
+    const headers = Object.values(LAYOUT_EXPORTACION_CONCILIACION)
+    const keys = Object.keys(LAYOUT_EXPORTACION_CONCILIACION)
+
+    const lineas = [headers.join(',')]
+
+    filasAExportar.forEach(r => {
+      const gal = (r.litros / 3.78541).toFixed(2)
+      const distMi = (r.distancia / 1.60934).toFixed(2)
+      const mpg = (r.rendimiento * 2.35214).toFixed(2)
+      const estatus = Number(mpg) < 3.0 ? 'ALERTA ROJA (< 3.0 MPG)' : 'NORMAL'
+
+      const filaVals = keys.map(k => {
+        let v: any = ''
+        if (k === 'unidad') v = r.unidad
+        else if (k === 'litros') v = r.litros
+        else if (k === 'galones') v = gal
+        else if (k === 'costo') v = r.costo
+        else if (k === 'distancia_km') v = r.distancia
+        else if (k === 'distancia_mi') v = distMi
+        else if (k === 'rendimiento_kml') v = r.rendimiento
+        else if (k === 'rendimiento_mpg') v = mpg
+        else if (k === 'estado_operativo') v = estatus
+        return `"${String(v).replace(/"/g, '""')}"`
+      })
+      lineas.push(filaVals.join(','))
+    })
+
+    const blob = new Blob(["\uFEFF" + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = soloAlertas ? `conciliacion_alertas_rojas_${new Date().toISOString().slice(0, 10)}.csv` : `conciliacion_combustible_ejecutiva_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast(soloAlertas ? 'CSV de alertas rojas descargado exitosamente.' : 'CSV ejecutivo descargado exitosamente.')
   }
 
   const unidadesFiltradas = unidades.filter(u => {
@@ -253,35 +314,240 @@ export default function ConciliacionDiesel() {
         </button>
       </div>
 
-      {resultados.length > 0 && (
-        <div style={{ ...card, padding: '14px 20px', overflowX: 'auto', marginTop: 18, animation: 'fadeUp 0.45s ease' }}>
-          <h3 style={{ ...h3Titulo, marginBottom: 12 }}>Resultados de Eficiencia Cruzada</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 600 }}>
-            <thead>
-              <tr style={theadRow}>
-                <th style={thCell}>Unidad</th>
-                <th style={{ ...thCell, textAlign: 'right' }}>Litros Dispensados</th>
-                <th style={{ ...thCell, textAlign: 'right' }}>Costo Total</th>
-                <th style={{ ...thCell, textAlign: 'right' }}>Distancia Samsara (km)</th>
-                <th style={{ ...thCell, textAlign: 'right' }}>Rendimiento Calculado (km/L)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultados.map((r, idx) => (
-                <tr key={idx} className="hv-fila">
-                  <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 16 }}>{r.unidad}</td>
-                  <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.litros} L</td>
-                  <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(r.costo)}</td>
-                  <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.distancia} km</td>
-                  <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: r.rendimiento > 2 ? '#2C7A44' : '#C53030' }}>
-                    {r.rendimiento} km/L
-                  </td>
+      {resultados.length > 0 && (() => {
+        const totalLitros = resultados.reduce((acc, r) => acc + r.litros, 0)
+        const totalCosto = resultados.reduce((acc, r) => acc + r.costo, 0)
+        const totalKm = resultados.reduce((acc, r) => acc + r.distancia, 0)
+        const totalGal = totalLitros / 3.78541
+        const totalMi = totalKm / 1.60934
+        const alertasRojasCount = resultados.filter(r => (r.rendimiento * 2.35214) < 3.0).length
+
+        const resultadosFiltrados = resultados.filter(r => {
+          if (filtroAlertas === 'rojas') {
+            return (r.rendimiento * 2.35214) < 3.0
+          }
+          return true
+        })
+
+        return (
+          <div style={{ ...card, padding: '18px 22px', overflowX: 'auto', marginTop: 22, animation: 'fadeUp 0.45s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
+              <div>
+                <h3 style={{ ...h3Titulo, margin: 0 }}>Resultados de Eficiencia Cruzada & Conciliación</h3>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
+                  Cruce automatizado de telemetría Samsara y dispersión de combustible. Layout homologado para exportación ejecutiva.
+                </p>
+              </div>
+
+              {/* Action Buttons: Unit Toggle & Export */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', background: 'var(--bg-input)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                  <button
+                    onClick={() => setUnidadMetrica('metric')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: unidadMetrica === 'metric' ? 'var(--accent-gold)' : 'transparent',
+                      color: unidadMetrica === 'metric' ? '#000' : 'var(--text-muted)',
+                      fontWeight: unidadMetrica === 'metric' ? 700 : 500,
+                      fontSize: 12.5,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Métrico (km, L)
+                  </button>
+                  <button
+                    onClick={() => setUnidadMetrica('imperial')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: unidadMetrica === 'imperial' ? 'var(--accent-gold)' : 'transparent',
+                      color: unidadMetrica === 'imperial' ? '#000' : 'var(--text-muted)',
+                      fontWeight: unidadMetrica === 'imperial' ? 700 : 500,
+                      fontSize: 12.5,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Imperial (mi, gal, MPG)
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => exportarCSV(false)}
+                  className="hv-op85"
+                  style={{
+                    padding: '8px 14px',
+                    background: '#1B4E8C',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 7,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  📥 Exportar CSV Ejecutivo
+                </button>
+
+                {alertasRojasCount > 0 && (
+                  <button
+                    onClick={() => exportarCSV(true)}
+                    className="hv-op85"
+                    style={{
+                      padding: '8px 14px',
+                      background: '#C53030',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 7,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    ⚠️ Exportar Solo Alertas Rojas ({alertasRojasCount})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* KPI Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 18 }}>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unidades Conciliadas</span>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FD, marginTop: 4 }}>{resultados.length}</div>
+              </div>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volumen Total</span>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FD, marginTop: 4 }}>
+                  {unidadMetrica === 'metric' ? `${totalLitros.toLocaleString(undefined, { maximumFractionDigits: 1 })} L` : `${totalGal.toLocaleString(undefined, { maximumFractionDigits: 1 })} gal`}
+                </div>
+              </div>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distancia Recorrida</span>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FD, marginTop: 4 }}>
+                  {unidadMetrica === 'metric' ? `${totalKm.toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : `${totalMi.toLocaleString(undefined, { maximumFractionDigits: 1 })} mi`}
+                </div>
+              </div>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Gasto Total</span>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FD, marginTop: 4, color: 'var(--accent-gold)' }}>
+                  {fmt(totalCosto)}
+                </div>
+              </div>
+              <div style={{ background: alertasRojasCount > 0 ? 'rgba(197, 48, 48, 0.12)' : 'var(--bg-input)', padding: '12px 16px', borderRadius: 8, border: alertasRojasCount > 0 ? '1px solid rgba(197, 48, 48, 0.35)' : '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 12, color: alertasRojasCount > 0 ? '#C53030' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                  Alertas Rojas (&lt; 3.0 MPG)
+                </span>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FD, marginTop: 4, color: alertasRojasCount > 0 ? '#C53030' : 'var(--text-main)' }}>
+                  {alertasRojasCount} {alertasRojasCount > 0 ? '⚠️' : '✅'}
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <button
+                onClick={() => setFiltroAlertas('todas')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: filtroAlertas === 'todas' ? '1px solid var(--accent-gold)' : '1px solid var(--border-color)',
+                  background: filtroAlertas === 'todas' ? 'rgba(197, 160, 89, 0.15)' : 'transparent',
+                  color: filtroAlertas === 'todas' ? 'var(--accent-gold)' : 'var(--text-muted)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Todas las Unidades ({resultados.length})
+              </button>
+              <button
+                onClick={() => setFiltroAlertas('rojas')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: filtroAlertas === 'rojas' ? '1px solid #C53030' : '1px solid var(--border-color)',
+                  background: filtroAlertas === 'rojas' ? 'rgba(197, 48, 48, 0.15)' : 'transparent',
+                  color: filtroAlertas === 'rojas' ? '#C53030' : 'var(--text-muted)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                ⚠️ Solo Alertas Rojas ({alertasRojasCount})
+              </button>
+            </div>
+
+            {/* Table */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 680 }}>
+              <thead>
+                <tr style={theadRow}>
+                  <th style={thCell}>Unidad</th>
+                  <th style={{ ...thCell, textAlign: 'right' }}>
+                    {unidadMetrica === 'metric' ? 'Litros Dispensados' : 'Galones Dispensados'}
+                  </th>
+                  <th style={{ ...thCell, textAlign: 'right' }}>Costo Total</th>
+                  <th style={{ ...thCell, textAlign: 'right' }}>
+                    {unidadMetrica === 'metric' ? 'Distancia Samsara (km)' : 'Distancia Samsara (mi)'}
+                  </th>
+                  <th style={{ ...thCell, textAlign: 'right' }}>
+                    {unidadMetrica === 'metric' ? 'Rendimiento (km/L)' : 'Rendimiento (MPG)'}
+                  </th>
+                  <th style={{ ...thCell, textAlign: 'center' }}>Semáforo / Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {resultadosFiltrados.map((r, idx) => {
+                  const mpg = r.rendimiento * 2.35214
+                  const esAlertaRoja = mpg < 3.0
+                  const galones = (r.litros / 3.78541).toFixed(2)
+                  const millas = (r.distancia / 1.60934).toFixed(2)
+                  const rendimientoTexto = unidadMetrica === 'metric' ? `${r.rendimiento.toFixed(2)} km/L` : `${mpg.toFixed(2)} MPG`
+
+                  return (
+                    <tr
+                      key={idx}
+                      className="hv-fila"
+                      style={{ background: esAlertaRoja ? 'rgba(197, 48, 48, 0.05)' : undefined }}
+                    >
+                      <td style={{ ...tdCell, fontFamily: FD, fontWeight: 700, fontSize: 16 }}>{r.unidad}</td>
+                      <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {unidadMetrica === 'metric' ? `${r.litros.toLocaleString()} L` : `${galones} gal`}
+                      </td>
+                      <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(r.costo)}</td>
+                      <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {unidadMetrica === 'metric' ? `${r.distancia.toLocaleString()} km` : `${millas} mi`}
+                      </td>
+                      <td style={{ ...tdCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: esAlertaRoja ? '#C53030' : '#2C7A44' }}>
+                        {rendimientoTexto}
+                      </td>
+                      <td style={{ ...tdCell, textAlign: 'center' }}>
+                        {esAlertaRoja ? (
+                          <span style={badge('rgba(197, 48, 48, 0.15)', '#C53030', 'rgba(197, 48, 48, 0.4)')}>
+                            ⚠️ Alerta (&lt; 3.0 MPG)
+                          </span>
+                        ) : (
+                          <span style={badge('rgba(44, 122, 68, 0.15)', '#2C7A44', 'rgba(44, 122, 68, 0.4)')}>
+                            ✅ Normal
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      })()}
 
       {/* Split external loads section with standardized pagination */}
       <div style={{ ...card, padding: '14px 20px', overflowX: 'auto', marginTop: 24, animation: 'fadeUp 0.48s ease' }}>
